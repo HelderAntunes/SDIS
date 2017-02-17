@@ -7,31 +7,39 @@ public class Client {
 	
 	public static void main(String[] args) throws IOException {
 			
-		String hostname = args[0];
-		int portNumber = Integer.parseInt(args[1]);
+		String hostnameOfServer = args[0]; // "localhost"
+		int portOfServer = Integer.parseInt(args[1]);
 		String oper = args[2];
-		String msg = null;
 		
-		if (oper.equals("REGISTER")) {
+		// prepare the message to send to the server
+		String msg = null;
+		if (oper.equals("REGISTER")) 
 			msg = oper + ":" + args[3] + ":" + args[4];
-		}
-		else if (oper.equals("LOOKUP")) {
+		else if (oper.equals("LOOKUP"))
 			msg = oper + ":" + args[3];
-		}
 		else {
 			System.out.println("ERROR: <oper> invalid.");
 			return;
 		}
 		
-		InetAddress address = InetAddress.getByName(hostname);
+		// create socket
 		DatagramSocket socket = new DatagramSocket();
 		
+		// prepare packet with the message and destination of server
 		byte[] buf = msg.getBytes();
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, address, portNumber);
-		socket.send(packet);
+		InetAddress address = InetAddress.getByName(hostnameOfServer);
+		DatagramPacket packetToSend = new DatagramPacket(buf, buf.length, address, portOfServer);
 		
+		// send request
+		socket.send(packetToSend);
+		
+		// create a packet that will contain the response
+		buf = new byte[255];
 		DatagramPacket packetReceived = new DatagramPacket(buf, buf.length);
+		
+		// receive response
 		socket.receive(packetReceived);
+		
     	String received = new String(packetReceived.getData(), 0, packetReceived.getLength());
     	received.trim();
     	System.out.println("Message received: " + received);
