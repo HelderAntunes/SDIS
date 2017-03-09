@@ -39,7 +39,7 @@ public class ServerPeer {
         this.mdrIP = args[7];
         this.mdrPort = Integer.parseInt(args[8]);
 
-        //this.putChunk = new PutChunk(this);
+
 
 
     }
