@@ -1,13 +1,14 @@
-/**
- * Created by helder on 09-03-2017.
- */
-public class Chunk {
-    public String fileId;
-    public int chunkNo;
+package backup;
 
-    public Chunk(String fileId, int chunkNo) {
+public class Chunk {
+    public final String fileId;
+    public final int chunkNo;
+    public final int desiredRepDeg;
+
+    public Chunk(String fileId, int chunkNo, int desiredDeg) {
         this.fileId = fileId;
         this.chunkNo = chunkNo;
+        this.desiredRepDeg = desiredDeg;
     }
 
     public boolean equals(Object other){
