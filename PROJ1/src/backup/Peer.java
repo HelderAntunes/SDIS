@@ -1,6 +1,11 @@
 package backup;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import backup.initiators.BackupInit;
+import backup.listeners.ControlChannelListener;
+import backup.listeners.DataChannelListener;
 
 public class Peer {
 	
@@ -17,7 +22,10 @@ public class Peer {
 
     private HashMap<Chunk, ArrayList<String> > backupDB;
     
-    public Peer(String[] args) {
+    private Thread controlChannel;
+    private Thread dataChannel;
+    
+    public Peer(String[] args) throws IOException {
 
         this.setProtocolVersion(args[0]);
         this.setServerID(Integer.parseInt(args[1]));
@@ -31,7 +39,24 @@ public class Peer {
         this.setMdrPort(Integer.parseInt(args[8]));
 
         this.setBackupDB(new HashMap<Chunk, ArrayList<String> >());
-
+        
+        this.controlChannel = new Thread(new ControlChannelListener(this));
+        this.dataChannel = new Thread(new DataChannelListener(this));
+        this.controlChannel.start();
+        this.dataChannel.start();
+    }
+    
+    public static void main(String[] args) throws IOException {
+    	Peer peer = new Peer(args);
+    	
+    	if (args[9].equals("putchunk")) {
+    		System.out.println("client peer");
+    		BackupInit backupInit = new BackupInit(peer, "fileID", 0, 1, new String("test putchunk").getBytes()); 
+    		backupInit.run();
+    	}
+    	else if (args[9].equals("processchunk")){
+    		System.out.println("server peer");
+    	}
     }
 
 	public String getProtocolVersion() {

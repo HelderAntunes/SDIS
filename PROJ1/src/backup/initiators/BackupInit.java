@@ -22,8 +22,9 @@ public class BackupInit implements Runnable {
 
         this.peer = peer;
         this.body = body;
-        this.msg = this.getMsg();
         this.chunk = new Chunk(fileId, chunkNo, repDeg);
+        this.msg = this.getMsg();
+        
         
         this.peer.getBackupDB().put(this.chunk, new ArrayList<String>());
 

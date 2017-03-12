@@ -28,12 +28,15 @@ public class BackupResponse implements Runnable {
 	public void run() {
 		
 		Chunk chunk = new Chunk(msgReceived[3], Integer.parseInt(msgReceived[4]), Integer.parseInt(msgReceived[5]));
-		int repDeg = Integer.parseInt(msgReceived[5]);
+		
+		if (this.peer.getMcIP().equals(msgReceived[2])) {
+			return;
+		}
 		
 		if (this.peer.peerBackUpAChunk(Integer.toString(this.peer.getServerID()), chunk)) {
 			this.sendConfirmation();
 		}
-		else if (this.peer.getReplicationOfChunk(chunk) < repDeg){
+		else if (this.peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
 			this.peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
 			this.sendConfirmation();
 		}

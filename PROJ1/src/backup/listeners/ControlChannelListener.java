@@ -22,13 +22,13 @@ public class ControlChannelListener implements Runnable {
 
 	@Override
 	public void run() {
-        try {
-    		while (true) {
-                this.processRequests();
-            }
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+        while (true) {
+        	try {
+				this.processRequests();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 
