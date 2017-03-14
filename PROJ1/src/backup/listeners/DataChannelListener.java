@@ -40,19 +40,16 @@ public class DataChannelListener implements Runnable {
         byte[] buf = new byte[1024];
         DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
         mdb.receive(msgRcvd);
-
         String[] result = new String(buf, 0, buf.length).split("\\s+");
         // PUTCHUNK <Version> <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <CRLF><CRLF><Body>
 
         if (result.length == 0)
         	return;
         
-        if (result[0].equals("PUTCHUNCK")) {
-        	BackupResponse backupResponse = new BackupResponse(this.peer, result);
-        	backupResponse.run();
+        if (result[0].equals("PUTCHUNK")) {
+        	new Thread(new BackupResponse(this.peer, result)).start();
         }
  
-
     }
 
 }

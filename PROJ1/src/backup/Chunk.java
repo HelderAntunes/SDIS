@@ -10,17 +10,35 @@ public class Chunk {
         this.chunkNo = chunkNo;
         this.desiredRepDeg = desiredDeg;
     }
-
-    public boolean equals(Object other){
-        boolean result;
-        if((other == null) || (getClass() != other.getClass())){
-            result = false;
-        }
-        else{
-            Chunk otherChunk = (Chunk)other;
-            result = this.fileId.equals(otherChunk.fileId) &&  this.chunkNo == otherChunk.chunkNo;
-        }
-
-        return result;
-    }
+    
+    @Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Chunk other = (Chunk) obj;
+		if (chunkNo != other.chunkNo)
+			return false;
+		if (desiredRepDeg != other.desiredRepDeg)
+			return false;
+		if (fileId == null) {
+			if (other.fileId != null)
+				return false;
+		} else if (!fileId.equals(other.fileId))
+			return false;
+		return true;
+	}
+    
+    @Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + chunkNo;
+		result = prime * result + desiredRepDeg;
+		result = prime * result + ((fileId == null) ? 0 : fileId.hashCode());
+		return result;
+	}
 }

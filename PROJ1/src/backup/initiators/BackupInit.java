@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.ArrayList;
 
 import backup.Chunk;
 import backup.Peer;
@@ -26,7 +25,7 @@ public class BackupInit implements Runnable {
         this.msg = this.getMsg();
         
         
-        this.peer.getBackupDB().put(this.chunk, new ArrayList<String>());
+        this.peer.recordsChunk(chunk);
 
         try {
             mdb = new MulticastSocket(peer.getMdbPort());
@@ -69,7 +68,8 @@ public class BackupInit implements Runnable {
             int attempts = 0;
             int currRep = 0;
             int timeOut = 1000;
-
+            
+            System.out.println("Desirable repDeg: " + this.chunk.desiredRepDeg);
             while (attempts < 5 && currRep < this.chunk.desiredRepDeg) {
             	
             	if (attempts > 0) {
@@ -80,7 +80,7 @@ public class BackupInit implements Runnable {
             	attempts++;
                 timeOut *= 2;
                 currRep = this.peer.getReplicationOfChunk(this.chunk);
-           
+                System.out.println("Current repDeg: " + currRep);
             }
 
         } catch (IOException e) {

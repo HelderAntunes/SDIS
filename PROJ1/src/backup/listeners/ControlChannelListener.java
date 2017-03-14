@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
 
 import backup.Chunk;
 import backup.Peer;
@@ -39,12 +40,14 @@ public class ControlChannelListener implements Runnable {
 		mc.receive(msgRcvd);
 		
 		String[] result = new String(buf, 0, buf.length).split("\\s+");
-		
 		if (result.length == 0)
 			return;
 		
+		// "STORED <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF>"
 		if (result[0].equals("STORED")) {
-			this.peer.recordsBackupIfNeeded(new Chunk(result[3], Integer.parseInt(result[4]), Integer.parseInt(result[5])), result[2]);
+			ArrayList<String> a = this.peer.getBackupDB().get(new Chunk(result[3], Integer.parseInt(result[4]), 1));
+			System.out.println(a.size());
+			this.peer.recordsBackupIfNeeded(new Chunk(result[3], Integer.parseInt(result[4]), 1), result[2]);
 		}
 		
 	}

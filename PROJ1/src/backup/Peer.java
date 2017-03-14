@@ -51,8 +51,7 @@ public class Peer {
     	
     	if (args[9].equals("putchunk")) {
     		System.out.println("client peer");
-    		BackupInit backupInit = new BackupInit(peer, "fileID", 0, 1, new String("test putchunk").getBytes()); 
-    		backupInit.run();
+    		new Thread(new BackupInit(peer, "fileID", 0, 1, new String("test putchunk").getBytes())).start();
     	}
     	else if (args[9].equals("processchunk")){
     		System.out.println("server peer");
@@ -153,10 +152,11 @@ public class Peer {
 	
 	public int getReplicationOfChunk(Chunk chunk) {
 		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
-		if (peersThatBackedUp == null)
+		return peersThatBackedUp.size();
+		/*if (peersThatBackedUp == null)
 			return 0;
 		else
-			return peersThatBackedUp.size();
+			return peersThatBackedUp.size();*/
 	}
 	
 	public void recordsBackupIfNeeded(Chunk chunk, String peerId) {
@@ -169,7 +169,13 @@ public class Peer {
 		else if (!this.peerBackUpAChunk(peerId, chunk)) {
 			peersThatBackedUp.add(peerId);
 		}
-		return;
+	}
+	
+	public void recordsChunk(Chunk chunk) {
+		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
+		if (peersThatBackedUp == null) {
+			this.backupDB.put(chunk, new ArrayList<String>());
+		}
 	}
     
 }

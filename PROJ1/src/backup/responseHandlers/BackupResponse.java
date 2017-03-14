@@ -28,8 +28,9 @@ public class BackupResponse implements Runnable {
 	public void run() {
 		
 		Chunk chunk = new Chunk(msgReceived[3], Integer.parseInt(msgReceived[4]), Integer.parseInt(msgReceived[5]));
+		this.peer.recordsChunk(chunk);
 		
-		if (this.peer.getMcIP().equals(msgReceived[2])) {
+		if (this.peer.getServerID() == Integer.parseInt(msgReceived[2])) {
 			return;
 		}
 		
@@ -60,8 +61,8 @@ public class BackupResponse implements Runnable {
             int  n = rand.nextInt(400) + 1;
 			Thread.sleep(n);
 			
-			InetAddress addr = InetAddress.getByName(peer.getMdbIP());
-		    this.mc.send(new DatagramPacket(byte_msg, byte_msg.length, addr, peer.getMdbPort()));
+			InetAddress addr = InetAddress.getByName(peer.getMcIP());
+		    this.mc.send(new DatagramPacket(byte_msg, byte_msg.length, addr, peer.getMcPort()));
 		    
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
