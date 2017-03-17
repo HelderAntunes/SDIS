@@ -1,47 +1,81 @@
 package backup.responseHandlers;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Random;
 
-import backup.Chunk;
+import backup.MetaDataChunk;
 import backup.Peer;
 
 public class BackupResponse implements Runnable {
 	
 	private MulticastSocket mc;
 	private Peer peer;
-	private String[] msgReceived;
+	private byte[] msgRcvd;
+	private String[] msgRcvdString;
 	
-	public BackupResponse(Peer peer, String[] msgReceived) throws IOException {
+	public BackupResponse(Peer peer, byte[] msgRcvd) throws IOException {
 
         this.peer = peer;
         this.mc = new MulticastSocket(peer.getMcPort());
-        this.msgReceived = msgReceived;
+        this.msgRcvd = msgRcvd;
+        this.msgRcvdString = new String(this.msgRcvd, 0, this.msgRcvd.length).split("\\s+");
         
     }
 
 	@Override
 	public void run() {
 		
-		Chunk chunk = new Chunk(msgReceived[3], Integer.parseInt(msgReceived[4]), Integer.parseInt(msgReceived[5]));
-		this.peer.recordsChunk(chunk);
-		
-		if (this.peer.getServerID() == Integer.parseInt(msgReceived[2])) {
+		MetaDataChunk chunk = new MetaDataChunk(msgRcvdString[3], Integer.parseInt(msgRcvdString[4]), Integer.parseInt(msgRcvdString[5]));
+			
+		if (this.peer.getServerID() == Integer.parseInt(msgRcvdString[2])) {
 			return;
 		}
 		
-		if (this.peer.peerBackUpAChunk(Integer.toString(this.peer.getServerID()), chunk)) {
+		if (Peer.peerBackUpAChunk(Integer.toString(this.peer.getServerID()), chunk)) {
 			this.sendConfirmation();
 		}
-		else if (this.peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
-			this.peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
+		else if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
+			Peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
+			Peer.getChunksRecorded().add(chunk.toString());
+			this.saveChunkInFileSystem(chunk);
 			this.sendConfirmation();
 		}
 		
+	}
+	
+	private void saveChunkInFileSystem(MetaDataChunk chunk) {
+		File file = new File(Peer.chunksDir, chunk.toString());
+	    FileOutputStream outputStream;
+		try {
+			outputStream = new FileOutputStream(file);
+			outputStream.write(this.getBodyOfMsg());
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private byte[] getBodyOfMsg() {
+		byte[] bodyMsg = null;
+		for (int i = 0; i < this.msgRcvd.length-3; i++) {
+			if (this.msgRcvd[i] == (byte)'\r' && this.msgRcvd[i+1] == (byte)'\n' && 
+					this.msgRcvd[i+2] == (byte)'\r' && this.msgRcvd[i+3] == (byte)'\n') {
+				bodyMsg = Arrays.copyOfRange(this.msgRcvd, i+4, this.msgRcvd.length);
+			}
+		}
+		if (bodyMsg == null) {
+			System.err.println("attr bodyMsg is null (BackupResponse.java 77)");
+		}
+		return bodyMsg;
 	}
 	
 	/**
@@ -54,7 +88,7 @@ public class BackupResponse implements Runnable {
         try {
         	String confirmation = "STORED " + this.peer.getProtocolVersion() 
         						+ " " + Integer.toString(this.peer.getServerID()) +
-        						" " + this.msgReceived[3] + " " + this.msgReceived[4] + " \r\n\r\n";
+        						" " + this.msgRcvdString[3] + " " + this.msgRcvdString[4] + " \r\n\r\n";
     		byte[] byte_msg = confirmation.getBytes();
     		
     		Random rand = new Random();

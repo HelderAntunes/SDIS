@@ -5,7 +5,7 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
-import backup.Chunk;
+import backup.MetaDataChunk;
 import backup.Peer;
 import backup.ProtocolUtils;
 
@@ -15,20 +15,17 @@ public class BackupInit implements Runnable {
     private MulticastSocket mdb;
     private byte[] body;
     private byte[] msg;
-	private Chunk chunk;
+	private MetaDataChunk chunk;
 	
 	public BackupInit(Peer peer, String fileId, int chunkNo, int repDeg, byte[] body) {
 
         this.peer = peer;
         this.body = body;
-        this.chunk = new Chunk(fileId, chunkNo, repDeg);
+        this.chunk = new MetaDataChunk(ProtocolUtils.getFileId(fileId), chunkNo, repDeg);
         this.msg = this.getMsg();
-        
-        
-        this.peer.recordsChunk(chunk);
-
+                
         try {
-            mdb = new MulticastSocket(peer.getMdbPort());
+            this.mdb = new MulticastSocket(peer.getMdbPort());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -42,7 +39,7 @@ public class BackupInit implements Runnable {
      */
     private byte[] getMsg() {
 
-        String fileID = ProtocolUtils.getFileId(this.chunk.fileId);
+        String fileID = this.chunk.fileId;
         String senderID = Integer.toString(this.peer.getServerID());
         String version = this.peer.getProtocolVersion();
         String replication = Integer.toString(this.chunk.desiredRepDeg);
@@ -71,7 +68,7 @@ public class BackupInit implements Runnable {
             
             System.out.println("Desirable repDeg: " + this.chunk.desiredRepDeg);
             while (attempts < 5 && currRep < this.chunk.desiredRepDeg) {
-            	
+
             	if (attempts > 0) {
             		mdb.send(new DatagramPacket(msg, msg.length, addr, peer.getMdbPort()));
             	}
@@ -79,10 +76,11 @@ public class BackupInit implements Runnable {
             	Thread.sleep(timeOut);
             	attempts++;
                 timeOut *= 2;
-                currRep = this.peer.getReplicationOfChunk(this.chunk);
-                System.out.println("Current repDeg: " + currRep);
+                currRep = Peer.getReplicationOfChunk(this.chunk);
             }
-
+            
+            System.out.println("End of BackInit thread");
+            
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {

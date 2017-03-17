@@ -47,7 +47,7 @@ public class DataChannelListener implements Runnable {
         	return;
         
         if (result[0].equals("PUTCHUNK")) {
-        	new Thread(new BackupResponse(this.peer, result)).start();
+        	new Thread(new BackupResponse(this.peer, buf)).start();
         }
  
     }

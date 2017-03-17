@@ -1,62 +1,84 @@
 package backup;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import backup.initiators.BackupInit;
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
 
 public class Peer {
-	
+
 	private String protocolVersion;
-    private int serverID;
-    private String serverAccessPoint;
-    private int serverPort;
-    private String mcIP;
-    private int mcPort;
-    private String mdbIP;
-    private int mdbPort;
-    private String mdrIP;
-    private int mdrPort;
+	private int serverID;
+	private String serverAccessPoint;
+	private int serverPort;
+	private String mcIP;
+	private int mcPort;
+	private String mdbIP;
+	private int mdbPort;
+	private String mdrIP;
+	private int mdrPort;
 
-    private HashMap<Chunk, ArrayList<String> > backupDB;
-    
-    private Thread controlChannel;
-    private Thread dataChannel;
-    
-    public Peer(String[] args) throws IOException {
+	public static ConcurrentHashMap<String, ArrayList<String> > backupDB = new ConcurrentHashMap<String, ArrayList<String> >();
+	private static CopyOnWriteArrayList<String> chunksRecorded = new CopyOnWriteArrayList<String>();
+	private Thread controlChannel;
+	private Thread dataChannel;
+	
+	public static File chunksDir;
+	
+	public int teste = 0;
 
-        this.setProtocolVersion(args[0]);
-        this.setServerID(Integer.parseInt(args[1]));
-        this.serverAccessPoint = args[2];
-        this.setServerPort(Integer.parseInt(serverAccessPoint)); // suppose that run on localhost
-        this.setMcIP(args[3]);
-        this.setMcPort(Integer.parseInt(args[4]));
-        this.setMdbIP(args[5]);
-        this.setMdbPort(Integer.parseInt(args[6]));
-        this.setMdrIP(args[7]);
-        this.setMdrPort(Integer.parseInt(args[8]));
+	public Peer(String[] args) throws IOException {
 
-        this.setBackupDB(new HashMap<Chunk, ArrayList<String> >());
-        
-        this.controlChannel = new Thread(new ControlChannelListener(this));
-        this.dataChannel = new Thread(new DataChannelListener(this));
-        this.controlChannel.start();
-        this.dataChannel.start();
-    }
-    
-    public static void main(String[] args) throws IOException {
-    	Peer peer = new Peer(args);
-    	
-    	if (args[9].equals("putchunk")) {
-    		System.out.println("client peer");
-    		new Thread(new BackupInit(peer, "fileID", 0, 1, new String("test putchunk").getBytes())).start();
-    	}
-    	else if (args[9].equals("processchunk")){
-    		System.out.println("server peer");
-    	}
-    }
+		this.setProtocolVersion(args[0]);
+		this.setServerID(Integer.parseInt(args[1]));
+		this.serverAccessPoint = args[2];
+		this.setServerPort(Integer.parseInt(serverAccessPoint)); // suppose that run on localhost
+		this.setMcIP(args[3]);
+		this.setMcPort(Integer.parseInt(args[4]));
+		this.setMdbIP(args[5]);
+		this.setMdbPort(Integer.parseInt(args[6]));
+		this.setMdrIP(args[7]);
+		this.setMdrPort(Integer.parseInt(args[8]));
+
+		this.controlChannel = new Thread(new ControlChannelListener(this));
+		this.dataChannel = new Thread(new DataChannelListener(this));
+		this.controlChannel.start();
+		this.dataChannel.start();
+		
+		this.mkChunksDirIfNotExists();
+	}
+
+	public static void main(String[] args) throws IOException {
+				
+		Peer peer = new Peer(args);
+
+		if (args[9].equals("putchunk")) {
+			System.out.println("client peer");
+			new Thread(new BackupInit(peer, "fileID", 0, 1, new String("test putchunk").getBytes())).start();
+		}
+		else if (args[9].equals("processchunk")){
+			System.out.println("server peer");
+		}
+	}
+	
+	public void mkChunksDirIfNotExists() {
+		
+		File serverDir = new File(Integer.toString(this.serverID));
+
+		if (!serverDir.exists()) {
+			serverDir.mkdir();
+		}
+		
+		Peer.chunksDir = new File(serverDir, "chunks");
+
+		if (!Peer.chunksDir.exists()) {
+			Peer.chunksDir.mkdir();
+		}
+	}
 
 	public String getProtocolVersion() {
 		return protocolVersion;
@@ -130,52 +152,64 @@ public class Peer {
 		this.mdrPort = mdrPort;
 	}
 
-	public HashMap<Chunk, ArrayList<String> > getBackupDB() {
+	public ConcurrentHashMap<String, ArrayList<String> > getBackupDB() {
 		return backupDB;
 	}
 
-	public void setBackupDB(HashMap<Chunk, ArrayList<String> > backupDB) {
-		this.backupDB = backupDB;
+	public void setBackupDB(ConcurrentHashMap<String, ArrayList<String> > backupDB) {
+		Peer.backupDB = backupDB;
 	}
-	
-	public boolean peerBackUpAChunk(String peerId, Chunk chunk) {
-		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
-		if (peersThatBackedUp == null)
+
+	public static boolean peerBackUpAChunk(String peerId, MetaDataChunk chunk) {
+		
+		if (!Peer.backupDB.containsKey(chunk.toString()))
 			return false;
 		
+		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
 		for (String id: peersThatBackedUp)
 			if (id.equals(peerId))
 				return true;
-		
+
 		return false; 
 	}
-	
-	public int getReplicationOfChunk(Chunk chunk) {
-		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
-		return peersThatBackedUp.size();
-		/*if (peersThatBackedUp == null)
+
+	public static int getReplicationOfChunk(MetaDataChunk chunk) {
+		if (!Peer.backupDB.containsKey(chunk.toString())) {
 			return 0;
-		else
-			return peersThatBackedUp.size();*/
+		}
+		
+		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
+		return peersThatBackedUp.size();
+
+	}
+
+	public static void recordsBackupIfNeeded(MetaDataChunk chunk, String peerId) {
+		
+		
+		if (!Peer.backupDB.containsKey(chunk.toString())) {
+			ArrayList<String> peersThatBackedUp = new ArrayList<String>();
+			peersThatBackedUp.add(peerId);
+			Peer.backupDB.put(chunk.toString(), peersThatBackedUp);
+		}
+		else {
+			ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
+			peersThatBackedUp.add(peerId);
+			Peer.backupDB.remove(chunk.toString());
+			Peer.backupDB.put(chunk.toString(), peersThatBackedUp);
+		}
+	
+	}
+
+	public static CopyOnWriteArrayList<String> getChunksRecorded() {
+		return chunksRecorded;
+	}
+
+	public static void setChunksRecorded(CopyOnWriteArrayList<String> chunksRecorded) {
+		Peer.chunksRecorded = chunksRecorded;
 	}
 	
-	public void recordsBackupIfNeeded(Chunk chunk, String peerId) {
-		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
-		if (peersThatBackedUp == null) {
-			peersThatBackedUp = new ArrayList<String>();
-			peersThatBackedUp.add(peerId);
-			this.backupDB.put(chunk, peersThatBackedUp);
-		}
-		else if (!this.peerBackUpAChunk(peerId, chunk)) {
-			peersThatBackedUp.add(peerId);
-		}
+	public static ArrayList<String> getPeersThatSavedTheChunk(MetaDataChunk chunk) {
+		return Peer.backupDB.get(chunk.toString());
 	}
-	
-	public void recordsChunk(Chunk chunk) {
-		ArrayList<String> peersThatBackedUp = this.backupDB.get(chunk);
-		if (peersThatBackedUp == null) {
-			this.backupDB.put(chunk, new ArrayList<String>());
-		}
-	}
-    
+
 }

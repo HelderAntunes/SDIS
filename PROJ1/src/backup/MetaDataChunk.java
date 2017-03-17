@@ -1,14 +1,19 @@
 package backup;
 
-public class Chunk {
-    public final String fileId;
+public class MetaDataChunk {
+
+	public final String fileId;
     public final int chunkNo;
     public final int desiredRepDeg;
+    
+    public final int id;
+    public static int last_id = 0;
 
-    public Chunk(String fileId, int chunkNo, int desiredDeg) {
+    public MetaDataChunk(String fileId, int chunkNo, int desiredDeg) {
         this.fileId = fileId;
         this.chunkNo = chunkNo;
         this.desiredRepDeg = desiredDeg;
+        this.id = MetaDataChunk.last_id++;
     }
     
     @Override
@@ -19,10 +24,8 @@ public class Chunk {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		Chunk other = (Chunk) obj;
+		MetaDataChunk other = (MetaDataChunk) obj;
 		if (chunkNo != other.chunkNo)
-			return false;
-		if (desiredRepDeg != other.desiredRepDeg)
 			return false;
 		if (fileId == null) {
 			if (other.fileId != null)
@@ -37,8 +40,12 @@ public class Chunk {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + chunkNo;
-		result = prime * result + desiredRepDeg;
 		result = prime * result + ((fileId == null) ? 0 : fileId.hashCode());
 		return result;
 	}
+    
+    @Override
+   	public String toString() {
+   		return this.fileId + Integer.toString(this.chunkNo);
+   	}
 }
