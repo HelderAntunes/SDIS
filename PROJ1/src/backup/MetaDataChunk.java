@@ -44,6 +44,10 @@ public class MetaDataChunk {
 		return result;
 	}
     
+    
+    /**
+     * Return a string with at least 65 characters (64 from fileId and at least 1 from chunk no)
+     */
     @Override
    	public String toString() {
    		return this.fileId + Integer.toString(this.chunkNo);

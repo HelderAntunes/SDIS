@@ -7,6 +7,7 @@ import java.net.MulticastSocket;
 
 import backup.MetaDataChunk;
 import backup.Peer;
+import backup.responseHandlers.DeleteResponse;
 
 public class ControlChannelListener implements Runnable {
 	
@@ -17,7 +18,6 @@ public class ControlChannelListener implements Runnable {
     	this.peer = peer;
     	this.mc = new MulticastSocket(peer.getMcPort());
     	mc.joinGroup(InetAddress.getByName(this.peer.getMcIP()));
-   
     }
 
 	@Override
@@ -26,7 +26,6 @@ public class ControlChannelListener implements Runnable {
         	try {
 				this.processRequests();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -42,11 +41,14 @@ public class ControlChannelListener implements Runnable {
 		if (result.length == 0)
 			return;
 		
-		// "STORED <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF>"
 		if (result[0].equals("STORED")) {
-			this.peer.teste = 666;
 			Peer.recordsBackupIfNeeded(new MetaDataChunk(result[3], Integer.parseInt(result[4]), 1), result[2]);
 		}
+		else if (result[0].equals("DELETE")) {
+			new Thread(new DeleteResponse(this.peer, buf)).start();
+		}
+		
+		this.peer.recordsDatabaseToFile();
 		
 	}
 }

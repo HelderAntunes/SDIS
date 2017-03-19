@@ -22,12 +22,10 @@ public class BackupResponse implements Runnable {
 	private String[] msgRcvdString;
 	
 	public BackupResponse(Peer peer, byte[] msgRcvd) throws IOException {
-
         this.peer = peer;
         this.mc = new MulticastSocket(peer.getMcPort());
         this.msgRcvd = msgRcvd;
         this.msgRcvdString = new String(this.msgRcvd, 0, this.msgRcvd.length).split("\\s+");
-        
     }
 
 	@Override
@@ -39,7 +37,7 @@ public class BackupResponse implements Runnable {
 			return;
 		}
 		
-		if (Peer.peerBackUpAChunk(Integer.toString(this.peer.getServerID()), chunk)) {
+		if (Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
 			this.sendConfirmation();
 		}
 		else if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
@@ -52,11 +50,14 @@ public class BackupResponse implements Runnable {
 	}
 	
 	private void saveChunkInFileSystem(MetaDataChunk chunk) {
-		File file = new File(Peer.chunksDir, chunk.toString());
-	    FileOutputStream outputStream;
+		
 		try {
-			outputStream = new FileOutputStream(file);
+			
+			File file = new File(this.peer.chunksDir, chunk.toString());
+		    FileOutputStream outputStream = new FileOutputStream(file);
 			outputStream.write(this.getBodyOfMsg());
+			outputStream.close();
+			
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -73,39 +74,35 @@ public class BackupResponse implements Runnable {
 			}
 		}
 		if (bodyMsg == null) {
-			System.err.println("attr bodyMsg is null (BackupResponse.java 77)");
+			System.err.println("attr bodyMsg is null (BackupResponse.java 74)");
 		}
 		return bodyMsg;
 	}
 	
 	/**
 	 * Send confirmation of storing of chunk to control channel.
-	 * PUTCHUNK command: "PUTCHUNK <Version> <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <CRLF><CRLF><Body>"
+	 * Message format:
 	 * STORED command: "STORED <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF>"
 	 */
 	private void sendConfirmation() {
 		
         try {
         	String confirmation = "STORED " + this.peer.getProtocolVersion() 
-        						+ " " + Integer.toString(this.peer.getServerID()) +
-        						" " + this.msgRcvdString[3] + " " + this.msgRcvdString[4] + " \r\n\r\n";
+					+ " " + Integer.toString(this.peer.getServerID()) +
+					" " + this.msgRcvdString[3] + " " + this.msgRcvdString[4] + " \r\n\r\n";
     		byte[] byte_msg = confirmation.getBytes();
     		
-    		Random rand = new Random();
-            int  n = rand.nextInt(400) + 1;
+            int  n = new Random().nextInt(400) + 1;
 			Thread.sleep(n);
 			
 			InetAddress addr = InetAddress.getByName(peer.getMcIP());
 		    this.mc.send(new DatagramPacket(byte_msg, byte_msg.length, addr, peer.getMcPort()));
 		    
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
         

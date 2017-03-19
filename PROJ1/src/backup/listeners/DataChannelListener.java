@@ -14,11 +14,9 @@ public class DataChannelListener implements Runnable {
     private MulticastSocket mdb;
     
     public DataChannelListener(Peer peer) throws IOException {
-
         this.peer = peer;
         this.mdb = new MulticastSocket(peer.getMdbPort());
         this.mdb.joinGroup(InetAddress.getByName(this.peer.getMdbIP()));
-        
     }
     
 	@Override
@@ -28,7 +26,6 @@ public class DataChannelListener implements Runnable {
 		    try {
 				this.processRequests();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -41,14 +38,17 @@ public class DataChannelListener implements Runnable {
         DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
         mdb.receive(msgRcvd);
         String[] result = new String(buf, 0, buf.length).split("\\s+");
-        // PUTCHUNK <Version> <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <CRLF><CRLF><Body>
 
         if (result.length == 0)
         	return;
         
+        // PUTCHUNK <Version> <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <CRLF><CRLF><Body>
         if (result[0].equals("PUTCHUNK")) {
         	new Thread(new BackupResponse(this.peer, buf)).start();
         }
+        
+		this.peer.recordsDatabaseToFile();
+
  
     }
 
