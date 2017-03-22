@@ -79,6 +79,9 @@ public class Peer {
 		else if (args[9].equals("server")){
 			System.out.println("server peer");
 		}
+		
+		
+		
 
 	}
 	

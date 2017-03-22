@@ -8,6 +8,7 @@ import java.net.MulticastSocket;
 import backup.MetaDataChunk;
 import backup.Peer;
 import backup.responseHandlers.DeleteResponse;
+import backup.responseHandlers.RestoreResponse;
 
 public class ControlChannelListener implements Runnable {
 	
@@ -46,6 +47,9 @@ public class ControlChannelListener implements Runnable {
 		}
 		else if (result[0].equals("DELETE")) {
 			new Thread(new DeleteResponse(this.peer, buf)).start();
+		}
+		else if (result[0].equals("GETCHUNK")) {
+			new Thread(new RestoreResponse(this.peer, buf)).start();
 		}
 		
 		this.peer.recordsDatabaseToFile();
