@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Utils {
 	
@@ -15,6 +16,7 @@ public class Utils {
 	public static final int MAX_SIZE_CHUNK = 64000;
 	public static final String DB_FILE_NAME = "backup_db";
 	public static final String CHUNKS_DIR_NAME = "chunks";
+	public static final String CHUNKS_RESTORED_DIR_NAME = "chunks_restored";
 
     /**
      * Obtain file id by using the SHA256 cryptographic hash function.
@@ -48,8 +50,7 @@ public class Utils {
         
     	ArrayList<byte[]> res = new ArrayList<byte[]>();
     	        
-        int sizeOfFiles = Utils.MAX_SIZE_CHUNK;
-        byte[] buffer = new byte[sizeOfFiles];
+        byte[] buffer = new byte[Utils.MAX_SIZE_CHUNK];
 
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(f))) {
             while (bis.read(buffer) > 0) {
@@ -65,5 +66,19 @@ public class Utils {
         
 		return res;
     }
+    
+    public static byte[] getBodyOfMsg(byte[] msgRcvd) {
+		byte[] bodyMsg = null;
+		for (int i = 0; i < msgRcvd.length-3; i++) {
+			if (msgRcvd[i] == (byte)'\r' && msgRcvd[i+1] == (byte)'\n' && 
+					msgRcvd[i+2] == (byte)'\r' && msgRcvd[i+3] == (byte)'\n') {
+				bodyMsg = Arrays.copyOfRange(msgRcvd, i+4, msgRcvd.length);
+			}
+		}
+		if (bodyMsg == null) {
+			System.err.println("attr bodyMsg is null (BackupResponse.java 76)");
+		}
+		return bodyMsg;
+	}
     
 }

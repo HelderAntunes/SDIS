@@ -1,5 +1,6 @@
 package backup.initiators;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -16,10 +17,10 @@ public class DeleteInit implements Runnable {
 	private String fileID;
 
 
-	public DeleteInit(Peer peer, String originalFileName) {
+	public DeleteInit(Peer peer, File file) {
 
 		this.peer = peer;
-		this.fileID = Utils.getFileId(originalFileName);
+		this.fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
 
 		try {
 			this.mc = new MulticastSocket(peer.getMcPort());

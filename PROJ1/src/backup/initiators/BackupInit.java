@@ -1,5 +1,6 @@
 package backup.initiators;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -17,11 +18,13 @@ public class BackupInit implements Runnable {
 	private byte[] msg;
 	private MetaDataChunk chunk;
 
-	public BackupInit(Peer peer, String originalFileName, int chunkNo, int repDeg, byte[] body) {
+	public BackupInit(Peer peer, File file, int chunkNo, int repDeg, byte[] body) {
 
 		this.peer = peer;
 		this.body = body;
-		this.chunk = new MetaDataChunk(Utils.getFileId(originalFileName), chunkNo, repDeg);
+		String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
+		Peer.nameFileToFileID.put(file.getName(), fileID);
+		this.chunk = new MetaDataChunk(fileID, chunkNo, repDeg);
 		this.msg = this.createMsg();
 
 		try {
@@ -45,6 +48,7 @@ public class BackupInit implements Runnable {
 			System.out.println("Desirable repDeg: " + this.chunk.desiredRepDeg);
 			
 			while (attempts < 5 && currRep < this.chunk.desiredRepDeg) {
+				System.out.println(msg.length);
 				mdb.send(new DatagramPacket(msg, msg.length, addr, peer.getMdbPort()));             
 				Thread.sleep(timeOut);
 				attempts++;

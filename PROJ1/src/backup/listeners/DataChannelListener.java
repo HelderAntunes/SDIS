@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.Arrays;
 
 import backup.Peer;
+import backup.Utils;
 import backup.responseHandlers.BackupResponse;
 
 public class DataChannelListener implements Runnable {
@@ -34,9 +36,10 @@ public class DataChannelListener implements Runnable {
 	
 	public void processRequests() throws IOException {
 
-        byte[] buf = new byte[1024];
+        byte[] buf = new byte[Utils.MAX_SIZE_CHUNK+1024];
         DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
         mdb.receive(msgRcvd);
+		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
         String[] result = new String(buf, 0, buf.length).split("\\s+");
 
         if (result.length == 0)

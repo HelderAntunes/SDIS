@@ -1,29 +1,57 @@
 package backup.listeners;
 
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.util.Arrays;
 
-import backup.responseHandlers.RestoreResponse;
+import backup.MetaDataChunk;
+import backup.Peer;
+import backup.Utils;
 
 public class RecoveryChannelListener implements Runnable {
 
-	
-	CopyOnWriteArrayList<RestoreResponse> restoreResponseHandlers;
-	
-	public RecoveryChannelListener() {
-		this.restoreResponseHandlers = new CopyOnWriteArrayList<RestoreResponse>();
+	Peer peer;
+	private MulticastSocket mdr;
+
+	public RecoveryChannelListener(Peer peer) throws IOException {
+		this.peer = peer;
+		this.mdr = new MulticastSocket(peer.getMdrPort());
+		this.mdr.joinGroup(InetAddress.getByName(this.peer.getMdrIP()));
 	}
-	
+
 	@Override
 	public void run() {
-		
+		while (true) {
+			try {
+				this.processRequests();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
-	
-	public void addRestoreResponse(RestoreResponse rh) {
-		this.restoreResponseHandlers.add(rh);
+
+	private void processRequests() throws IOException {
+
+		byte[] buf = new byte[Utils.MAX_SIZE_CHUNK+1024];
+		DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
+		this.mdr.receive(msgRcvd);
+		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
+		String msgRcvdString = new String(buf, 0, buf.length);
+		String[] result = msgRcvdString.split("\\s+");
+
+		if (result.length == 0)
+			return;
+
+		if (result[0].equals("CHUNK")) {
+			String fileID = result[3];
+			int chunkNO = Integer.parseInt(result[4]);
+			MetaDataChunk chunk = new MetaDataChunk(fileID, chunkNO, -1);
+			Peer.chunkReceived.add(chunk.toString());
+		}
+
+		//this.peer.recordsDatabaseToFile();
 	}
-	
-	public void remRestoreResponse(RestoreResponse rh) {
-		this.restoreResponseHandlers.remove(rh);
-	}
-	
+
 }

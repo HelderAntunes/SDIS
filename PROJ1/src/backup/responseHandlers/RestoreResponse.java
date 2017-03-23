@@ -1,71 +1,79 @@
 package backup.responseHandlers;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.nio.file.Files;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import backup.MetaDataChunk;
 import backup.Peer;
 
 public class RestoreResponse implements Runnable {
-	
+
 	private Peer peer;
 	private byte[] msgRcvd;
 	private String[] msgRcvdString;
-	private Boolean sendChunk;
 	private MulticastSocket mdr;
 	private MetaDataChunk chunk;
 
 	public RestoreResponse(Peer peer, byte[] msgRcvd) throws IOException {
+
 		this.peer = peer;
 		this.msgRcvd = msgRcvd;
-        this.msgRcvdString = new String(this.msgRcvd, 0, this.msgRcvd.length).split("\\s+");
-        this.sendChunk = true;
-        this.mdr = new MulticastSocket(peer.getMdrPort());
-        this.chunk = new MetaDataChunk(this.msgRcvdString[3], Integer.parseInt(this.msgRcvdString[4]), -1);
+		this.msgRcvdString = new String(this.msgRcvd, 0, this.msgRcvd.length).split("\\s+");
+		this.mdr = new MulticastSocket(peer.getMdrPort());
+		this.chunk = new MetaDataChunk(this.msgRcvdString[3], Integer.parseInt(this.msgRcvdString[4]), -1);
 	}
 
 	@Override
 	public void run() {
-		// GETCHUNK <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF>
 		String serverID = this.msgRcvdString[2];
-		
-		if (serverID.equals(Integer.toString(this.peer.getServerID()))) {
+
+		if (serverID.equals(Integer.toString(this.peer.getServerID())) ||
+				!Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
 			return;
 		}
 		
-		if (!Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
-			return;
-		}
-		
-		int  n = new Random().nextInt(400) + 1;
-		
+	
 		try {
+			int  n = new Random().nextInt(400) + 1;
+			
 			Thread.sleep(n);
-		} catch (InterruptedException e) {
+			if(this.noChunkHasArrived()) {
+				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
+				byte[] msgToSend = this.createMsg();
+				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
+			}
+		} catch (InterruptedException | IOException e) {
 			e.printStackTrace();
 		}
 		
-		if (this.sendChunk == true) {
-			InetAddress addr;
-			try {
-				addr = InetAddress.getByName(peer.getMdrIP());
-				byte[] msg = this.createMsg();
-			    this.mdr.send(new DatagramPacket(msg, msg.length, addr, peer.getMdrPort()));
-			} catch (IOException e) {
-				e.printStackTrace();
+	}
+
+	private boolean noChunkHasArrived() {
+
+		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkReceived;
+		for (int i = 0; i < chunkMsgReceived.size(); i++) {
+
+			String msg = chunkMsgReceived.get(i);
+			String[] msgSplitted = msg.split("\\s+");
+			String fileID = msgSplitted[3];
+			int chunkNO = Integer.parseInt(msgSplitted[4]);
+
+			if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
+				chunkMsgReceived.remove(i);
+				return false;
 			}
-		
+
 		}
-			
+
+		return true;
 	}
-	
-	public void update(String msg) {
-		
-	}
-	
+
 	/**
 	 * Message format:
 	 * "CHUNK <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF><Body>"
@@ -79,11 +87,32 @@ public class RestoreResponse implements Runnable {
 		String chunkNo = Integer.toString(this.chunk.chunkNo);
 		String msg = "CHUNK " + version + " " + senderID + " " + fileID + " " + 
 				chunkNo + " \r\n\r\n";
-		
-		
 
-		return msg.getBytes();
+		byte[] header = msg.getBytes();
+		byte[] body = this.readChunk();
+		System.out.println("tamanho do body: " + body.length);
+		System.out.println("tamanho do header: " + header.length);
+
+
+		byte[] byte_msg = new byte[header.length + body.length];
+		System.arraycopy(header, 0, byte_msg, 0, header.length);
+		System.arraycopy(body, 0, byte_msg, header.length, body.length);
+		System.out.println("tamanho do byte_msg: " + byte_msg.length);
+		return byte_msg;
 	}
 
-	
+	private byte[] readChunk() {
+
+		try {
+			String nameOfChunk = this.chunk.fileId + Integer.toString(this.chunk.chunkNo);
+			File chunkFile = new File(Peer.chunksDir, nameOfChunk);
+			byte[] buffer = Files.readAllBytes(chunkFile.toPath());
+			return buffer;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+	}
+
 }

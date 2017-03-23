@@ -14,20 +14,27 @@ public class Initiator implements Runnable {
 			// args = [pathFile, repDeg]
 			String pathFile = args[0];
 			int repDeg = Integer.parseInt(args[1]);
+			
 			File file = new File(pathFile);
-			System.out.println("sdfdf");
+			
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
-			System.out.println("sdfdf");
 			for (int i = 0; i < fileSplitted.size(); i++) {
-				new Thread(new BackupInit(peer, pathFile, i, repDeg, fileSplitted.get(i))).start();
-				System.out.println("sdfdf");
+				new Thread(new BackupInit(peer, file, i, repDeg, fileSplitted.get(i))).start();
 			}
 			
 		}
 		else if (command.equals("deletefile")) {
 			// args = [pathFile]
 			String pathFile = args[0];
-			new Thread(new DeleteInit(peer, pathFile)).start();
+			File file = new File(pathFile);
+			new Thread(new DeleteInit(peer, file)).start();
+		}
+		else if (command.equals("getfile")) {
+			// args = [pathFile, chunkNO]
+			String pathFile = args[0];
+			int chunkNO = Integer.parseInt(args[1]);
+			File file = new File(pathFile);
+			new Thread(new RestoreInit(peer, file, chunkNO)).start();
 		}
 		
     }

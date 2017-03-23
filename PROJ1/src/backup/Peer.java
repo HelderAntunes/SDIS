@@ -26,11 +26,14 @@ public class Peer {
 	private String mdrIP;
 	private int mdrPort;
 
-	public static ConcurrentHashMap<String, ArrayList<String> > backupDB;
-	private static CopyOnWriteArrayList<String> chunksRecorded;
+	public static ConcurrentHashMap<String, ArrayList<String> > backupDB; // chunk string -> peersThatSavedThe chunk[]
+	public static ConcurrentHashMap<String, String > nameFileToFileID; 
+	
+	public static CopyOnWriteArrayList<String> chunkReceived;
 
-	public File chunksDir;
-	public File serverDir;
+	public static File chunksDir;
+	public static File serverDir;
+	public static File chunksRestoredDir;
 
 	public Peer(String[] args) throws IOException {
 
@@ -44,6 +47,8 @@ public class Peer {
 		this.setMdbPort(Integer.parseInt(args[6]));
 		this.setMdrIP(args[7]);
 		this.setMdrPort(Integer.parseInt(args[8]));
+		
+		Peer.chunkReceived = new CopyOnWriteArrayList<String>();
 
 		this.init();
 
@@ -76,13 +81,15 @@ public class Peer {
 			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/WWE   Rest In Peace The Undertaker.mp3"};
 			new Initiator(peer, "deletefile", argsInitiator);
 		}
+		else if (args[9].equals("getfile")) {
+			System.out.println("client peer");
+			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/WWE   Rest In Peace The Undertaker.mp3", "0"};
+			new Initiator(peer, "getfile", argsInitiator);
+		}
 		else if (args[9].equals("server")){
 			System.out.println("server peer");
 		}
 		
-		
-		
-
 	}
 	
 	private void init() {
@@ -92,35 +99,42 @@ public class Peer {
 	
 	private void initDirectories() {
 
-		this.serverDir = new File(Integer.toString(this.serverID));
+		Peer.serverDir = new File(Integer.toString(this.serverID));
 
 		if (!serverDir.exists()) {
 			serverDir.mkdir();
 		}
 
-		this.chunksDir = new File(this.serverDir, Utils.CHUNKS_DIR_NAME);
+		Peer.chunksDir = new File(Peer.serverDir, Utils.CHUNKS_DIR_NAME);
 
-		if (!this.chunksDir.exists()) {
-			this.chunksDir.mkdir();
+		if (!Peer.chunksDir.exists()) {
+			Peer.chunksDir.mkdir();
+		}
+		
+		Peer.chunksRestoredDir = new File(Peer.serverDir, Utils.CHUNKS_RESTORED_DIR_NAME);
+		
+		if (!Peer.chunksRestoredDir.exists()) {
+			Peer.chunksRestoredDir.mkdir();
 		}
 
 	}
 
 	@SuppressWarnings("unchecked")
 	private void initDatabase() {
-		Peer.chunksRecorded = new CopyOnWriteArrayList<String>();
 		
 		try {
 			
-			File db_file = new File(this.serverDir, Utils.DB_FILE_NAME);
+			File db_file = new File(Peer.serverDir, Utils.DB_FILE_NAME);
 
 			if(db_file.exists() && !db_file.isDirectory()) { 
 				ObjectInputStream ois = new ObjectInputStream(new FileInputStream(db_file));
 				Peer.backupDB = (ConcurrentHashMap<String, ArrayList<String>>) ois.readObject();
+				Peer.nameFileToFileID = (ConcurrentHashMap<String, String>) ois.readObject();
 				ois.close();
 			}
 			else {
 				Peer.backupDB = new ConcurrentHashMap<String, ArrayList<String> >();
+				Peer.nameFileToFileID = new ConcurrentHashMap<String, String>();
 			}
 
 		} catch (IOException e) {
@@ -214,14 +228,6 @@ public class Peer {
 		Peer.backupDB = backupDB;
 	}
 
-	public static CopyOnWriteArrayList<String> getChunksRecorded() {
-		return chunksRecorded;
-	}
-
-	public static void setChunksRecorded(CopyOnWriteArrayList<String> chunksRecorded) {
-		Peer.chunksRecorded = chunksRecorded;
-	}
-
 	/*************************************************/
 	/********* END OF GETTERS AND SETTERS ************/
 	/*************************************************/
@@ -297,10 +303,11 @@ public class Peer {
 	public synchronized void recordsDatabaseToFile() {
 
 		try {
-			File db_file = new File(this.serverDir, Utils.DB_FILE_NAME);
+			File db_file = new File(Peer.serverDir, Utils.DB_FILE_NAME);
 			FileOutputStream fout = new FileOutputStream(db_file);
 			ObjectOutputStream oos = new ObjectOutputStream(fout);
 			oos.writeObject(Peer.backupDB);
+			oos.writeObject(Peer.nameFileToFileID);
 			oos.close();
 			fout.close();
 		} catch (IOException e) {

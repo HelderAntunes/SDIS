@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.Arrays;
 
 import backup.MetaDataChunk;
 import backup.Peer;
@@ -37,6 +38,7 @@ public class ControlChannelListener implements Runnable {
 		byte[] buf = new byte[1024];
 		DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
 		mc.receive(msgRcvd);
+		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
 		
 		String[] result = new String(buf, 0, buf.length).split("\\s+");
 		if (result.length == 0)

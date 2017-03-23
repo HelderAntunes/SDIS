@@ -8,11 +8,11 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Random;
 
 import backup.MetaDataChunk;
 import backup.Peer;
+import backup.Utils;
 
 public class BackupResponse implements Runnable {
 	
@@ -42,7 +42,6 @@ public class BackupResponse implements Runnable {
 		}
 		else if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
 			Peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
-			Peer.getChunksRecorded().add(chunk.toString());
 			this.saveChunkInFileSystem(chunk);
 			this.sendConfirmation();
 		}
@@ -53,9 +52,9 @@ public class BackupResponse implements Runnable {
 		
 		try {
 			
-			File file = new File(this.peer.chunksDir, chunk.toString());
+			File file = new File(Peer.chunksDir, chunk.toString());
 		    FileOutputStream outputStream = new FileOutputStream(file);
-			outputStream.write(this.getBodyOfMsg());
+			outputStream.write(Utils.getBodyOfMsg(this.msgRcvd));
 			outputStream.close();
 			
 		} catch (FileNotFoundException e) {
@@ -63,20 +62,6 @@ public class BackupResponse implements Runnable {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-	
-	private byte[] getBodyOfMsg() {
-		byte[] bodyMsg = null;
-		for (int i = 0; i < this.msgRcvd.length-3; i++) {
-			if (this.msgRcvd[i] == (byte)'\r' && this.msgRcvd[i+1] == (byte)'\n' && 
-					this.msgRcvd[i+2] == (byte)'\r' && this.msgRcvd[i+3] == (byte)'\n') {
-				bodyMsg = Arrays.copyOfRange(this.msgRcvd, i+4, this.msgRcvd.length);
-			}
-		}
-		if (bodyMsg == null) {
-			System.err.println("attr bodyMsg is null (BackupResponse.java 74)");
-		}
-		return bodyMsg;
 	}
 	
 	/**

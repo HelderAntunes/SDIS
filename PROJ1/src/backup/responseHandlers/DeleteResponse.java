@@ -37,7 +37,7 @@ public class DeleteResponse implements Runnable {
 			
 			if (fileIDOfChunk.equals(fileID)) {
 				Peer.backupDB.remove(key);
-				File fileToDelete = new File(this.peer.chunksDir, key);
+				File fileToDelete = new File(Peer.chunksDir, key);
 				fileToDelete.delete();
 			}
 		}
