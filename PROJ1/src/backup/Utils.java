@@ -92,6 +92,7 @@ public class Utils {
             for (File f : files) {
             	System.out.println(f.getName());
                 Files.copy(f.toPath(), mergingStream);
+                f.delete();
             }
         }
     }

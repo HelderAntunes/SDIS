@@ -6,6 +6,7 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
+import java.util.Set;
 
 import backup.Peer;
 import backup.Utils;
@@ -42,10 +43,18 @@ public class DeleteInit implements Runnable {
 			int attempts = 0;
 			int timeOut = 1000;
 
-			while (attempts < 1) {
+			while (attempts < 2) {
 				this.mc.send(new DatagramPacket(msg, msg.length, addr, this.peer.getMcPort()));
 				Thread.sleep(timeOut);
 				attempts++;
+			}
+			
+			Set<String> keys = Peer.backupDB.keySet();
+			for(String key : keys) {
+				String fileIDOfChunk = key.substring(0, Utils.SIZE_OF_FILEID);
+				if (fileIDOfChunk.equals(fileID)) {
+					Peer.backupDB.remove(key);
+				}
 			}
 
 			System.out.println("End of DeleteInit");
