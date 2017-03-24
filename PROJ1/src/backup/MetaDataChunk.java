@@ -50,6 +50,6 @@ public class MetaDataChunk {
      */
     @Override
    	public String toString() {
-   		return this.fileId + Integer.toString(this.chunkNo);
+   		return this.fileId + String.format("%03d", this.chunkNo);
    	}
 }

@@ -1,14 +1,18 @@
 package backup;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class Utils {
 	
@@ -17,6 +21,8 @@ public class Utils {
 	public static final String DB_FILE_NAME = "backup_db";
 	public static final String CHUNKS_DIR_NAME = "chunks";
 	public static final String CHUNKS_RESTORED_DIR_NAME = "chunks_restored";
+	public static final String FILES_RESTORED_DIR_NAME = "files_restored";
+
 
     /**
      * Obtain file id by using the SHA256 cryptographic hash function.
@@ -80,5 +86,14 @@ public class Utils {
 		}
 		return bodyMsg;
 	}
+    
+    public static void mergeFiles(List<File> files, File into) throws IOException {
+        try (BufferedOutputStream mergingStream = new BufferedOutputStream(new FileOutputStream(into))) {
+            for (File f : files) {
+            	System.out.println(f.getName());
+                Files.copy(f.toPath(), mergingStream);
+            }
+        }
+    }
     
 }

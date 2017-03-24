@@ -26,7 +26,7 @@ public class Peer {
 	private String mdrIP;
 	private int mdrPort;
 
-	public static ConcurrentHashMap<String, ArrayList<String> > backupDB; // chunk string -> peersThatSavedThe chunk[]
+	public static ConcurrentHashMap<String, ArrayList<String> > backupDB; // chunk string -> peersThatSavedTheChunk[]
 	public static ConcurrentHashMap<String, String > nameFileToFileID; 
 	
 	public static CopyOnWriteArrayList<String> chunkReceived;
@@ -34,6 +34,7 @@ public class Peer {
 	public static File chunksDir;
 	public static File serverDir;
 	public static File chunksRestoredDir;
+	public static File filesRestoredDir;
 
 	public Peer(String[] args) throws IOException {
 
@@ -115,6 +116,12 @@ public class Peer {
 		
 		if (!Peer.chunksRestoredDir.exists()) {
 			Peer.chunksRestoredDir.mkdir();
+		}
+		
+		Peer.filesRestoredDir = new File(Peer.serverDir, Utils.FILES_RESTORED_DIR_NAME);
+		
+		if (!Peer.filesRestoredDir.exists()) {
+			Peer.filesRestoredDir.mkdir();
 		}
 
 	}

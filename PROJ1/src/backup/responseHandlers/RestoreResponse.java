@@ -47,6 +47,7 @@ public class RestoreResponse implements Runnable {
 				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
 				byte[] msgToSend = this.createMsg();
 				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
+				System.out.println("sent in restore response");
 			}
 		} catch (InterruptedException | IOException e) {
 			e.printStackTrace();
@@ -90,21 +91,19 @@ public class RestoreResponse implements Runnable {
 
 		byte[] header = msg.getBytes();
 		byte[] body = this.readChunk();
-		System.out.println("tamanho do body: " + body.length);
-		System.out.println("tamanho do header: " + header.length);
 
 
 		byte[] byte_msg = new byte[header.length + body.length];
 		System.arraycopy(header, 0, byte_msg, 0, header.length);
 		System.arraycopy(body, 0, byte_msg, header.length, body.length);
-		System.out.println("tamanho do byte_msg: " + byte_msg.length);
+
 		return byte_msg;
 	}
 
 	private byte[] readChunk() {
 
 		try {
-			String nameOfChunk = this.chunk.fileId + Integer.toString(this.chunk.chunkNo);
+			String nameOfChunk = this.chunk.toString();
 			File chunkFile = new File(Peer.chunksDir, nameOfChunk);
 			byte[] buffer = Files.readAllBytes(chunkFile.toPath());
 			return buffer;
