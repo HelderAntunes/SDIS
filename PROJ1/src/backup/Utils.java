@@ -59,9 +59,13 @@ public class Utils {
         byte[] buffer = new byte[Utils.MAX_SIZE_CHUNK];
 
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(f))) {
-            while (bis.read(buffer) > 0) {
-            	res.add(buffer.clone());
-            }
+        	while(true) {
+        		int r = bis.read(buffer);
+            	byte[] bufferAux = Arrays.copyOfRange(buffer, 0, r);
+                res.add(bufferAux);
+                if (r < Utils.MAX_SIZE_CHUNK)
+                	break;
+        	}
         } catch (IOException e) {
 			e.printStackTrace();
 		}

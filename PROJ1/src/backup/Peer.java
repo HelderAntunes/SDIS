@@ -26,10 +26,11 @@ public class Peer {
 	private String mdrIP;
 	private int mdrPort;
 
-	public static ConcurrentHashMap<String, ArrayList<String> > backupDB; // chunk string -> peersThatSavedTheChunk[]
+	public static ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB; // chunk string -> peersThatSavedTheChunk[]
 	public static ConcurrentHashMap<String, String > nameFileToFileID; 
 	
-	public static CopyOnWriteArrayList<String> chunkReceived;
+	public static CopyOnWriteArrayList<String> chunkMsgsReceived;
+	public static CopyOnWriteArrayList<String> putChunkMsgsReceived;
 
 	public static File chunksDir;
 	public static File serverDir;
@@ -49,7 +50,8 @@ public class Peer {
 		this.setMdrIP(args[7]);
 		this.setMdrPort(Integer.parseInt(args[8]));
 		
-		Peer.chunkReceived = new CopyOnWriteArrayList<String>();
+		Peer.chunkMsgsReceived = new CopyOnWriteArrayList<String>();
+		Peer.putChunkMsgsReceived = new CopyOnWriteArrayList<String>();
 
 		this.init();
 
@@ -135,12 +137,12 @@ public class Peer {
 
 			if(db_file.exists() && !db_file.isDirectory()) { 
 				ObjectInputStream ois = new ObjectInputStream(new FileInputStream(db_file));
-				Peer.backupDB = (ConcurrentHashMap<String, ArrayList<String>>) ois.readObject();
+				Peer.backupDB = (ConcurrentHashMap<MetaDataChunk, ArrayList<String>>) ois.readObject();
 				Peer.nameFileToFileID = (ConcurrentHashMap<String, String>) ois.readObject();
 				ois.close();
 			}
 			else {
-				Peer.backupDB = new ConcurrentHashMap<String, ArrayList<String> >();
+				Peer.backupDB = new ConcurrentHashMap<MetaDataChunk, ArrayList<String> >();
 				Peer.nameFileToFileID = new ConcurrentHashMap<String, String>();
 			}
 
@@ -227,11 +229,11 @@ public class Peer {
 		this.mdrPort = mdrPort;
 	}
 
-	public ConcurrentHashMap<String, ArrayList<String> > getBackupDB() {
+	public ConcurrentHashMap<MetaDataChunk, ArrayList<String> > getBackupDB() {
 		return backupDB;
 	}
 
-	public void setBackupDB(ConcurrentHashMap<String, ArrayList<String> > backupDB) {
+	public void setBackupDB(ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB) {
 		Peer.backupDB = backupDB;
 	}
 
@@ -245,7 +247,7 @@ public class Peer {
 	 * @return array of peer's string
 	 */
 	public static ArrayList<String> getPeersThatSavedTheChunk(MetaDataChunk chunk) {
-		return Peer.backupDB.get(chunk.toString());
+		return Peer.backupDB.get(chunk);
 	}
 
 	/**
@@ -256,10 +258,10 @@ public class Peer {
 	 */
 	public static boolean backUpAChunkPreviously(String peerId, MetaDataChunk chunk) {
 
-		if (!Peer.backupDB.containsKey(chunk.toString()))
+		if (!Peer.backupDB.containsKey(chunk))
 			return false;
 
-		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
+		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk);
 		for (String id: peersThatBackedUp)
 			if (id.equals(peerId))
 				return true;
@@ -273,11 +275,11 @@ public class Peer {
 	 * @return current replication of chunk
 	 */
 	public static int getReplicationOfChunk(MetaDataChunk chunk) {
-		if (!Peer.backupDB.containsKey(chunk.toString())) {
+		if (!Peer.backupDB.containsKey(chunk)) {
 			return 0;
 		}
 
-		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
+		ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk);
 		return peersThatBackedUp.size();
 	}
 
@@ -288,17 +290,15 @@ public class Peer {
 	 */
 	public static void recordsBackupIfNeeded(MetaDataChunk chunk, String peerId) {
 
-		if (!Peer.backupDB.containsKey(chunk.toString())) {
+		if (!Peer.backupDB.containsKey(chunk)) {
 			ArrayList<String> peersThatBackedUp = new ArrayList<String>();
 			peersThatBackedUp.add(peerId);
-			Peer.backupDB.put(chunk.toString(), peersThatBackedUp);
+			Peer.backupDB.put(chunk, peersThatBackedUp);
 		}
 		else {
 			if (!Peer.backUpAChunkPreviously(peerId, chunk)) {
-				ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk.toString());
+				ArrayList<String> peersThatBackedUp = Peer.backupDB.get(chunk);
 				peersThatBackedUp.add(peerId);
-				Peer.backupDB.remove(chunk.toString());
-				Peer.backupDB.put(chunk.toString(), peersThatBackedUp);
 			}
 		}
 
@@ -307,7 +307,7 @@ public class Peer {
 	/**
 	 * Save the meta-data in non-volatile memory.
 	 */
-	public synchronized void recordsDatabaseToFile() {
+	public static synchronized void recordsDatabaseToFile() {
 
 		try {
 			File db_file = new File(Peer.serverDir, Utils.DB_FILE_NAME);

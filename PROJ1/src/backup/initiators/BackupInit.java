@@ -56,7 +56,6 @@ public class BackupInit implements Runnable {
 				currRep = Peer.getReplicationOfChunk(this.chunk);
 			}
 
-			this.peer.recordsDatabaseToFile();
 			System.out.println("End of BackInit thread");
 
 		} catch (IOException e) {

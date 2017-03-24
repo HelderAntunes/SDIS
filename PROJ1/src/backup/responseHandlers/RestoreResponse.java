@@ -38,7 +38,6 @@ public class RestoreResponse implements Runnable {
 			return;
 		}
 		
-	
 		try {
 			int  n = new Random().nextInt(400) + 1;
 			
@@ -53,11 +52,12 @@ public class RestoreResponse implements Runnable {
 			e.printStackTrace();
 		}
 		
+		Peer.recordsDatabaseToFile();
 	}
 
 	private boolean noChunkHasArrived() {
 
-		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkReceived;
+		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkMsgsReceived;
 		for (int i = 0; i < chunkMsgReceived.size(); i++) {
 
 			String msg = chunkMsgReceived.get(i);

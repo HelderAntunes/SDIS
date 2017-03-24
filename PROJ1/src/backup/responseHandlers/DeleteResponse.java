@@ -4,8 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Set;
 
+import backup.MetaDataChunk;
 import backup.Peer;
-import backup.Utils;
 
 public class DeleteResponse implements Runnable {
 	
@@ -31,19 +31,19 @@ public class DeleteResponse implements Runnable {
 		
 		System.out.println("Init of delete response!");
 		
-		Set<String> keys = Peer.backupDB.keySet();
-		for(String key : keys) {
-			String fileIDOfChunk = key.substring(0, Utils.SIZE_OF_FILEID);
+		Set<MetaDataChunk> keys = Peer.backupDB.keySet();
+		for(MetaDataChunk key : keys) {
 			
-			if (fileIDOfChunk.equals(fileID)) {
+			if (key.fileId.equals(fileID)) {
 				Peer.backupDB.remove(key);
-				File fileToDelete = new File(Peer.chunksDir, key);
+				File fileToDelete = new File(Peer.chunksDir, key.toString());
 				fileToDelete.delete();
 			}
 		}
 		
 		System.out.println("End of delete response!");
-
+		
+		Peer.recordsDatabaseToFile();
 	}
 
 }

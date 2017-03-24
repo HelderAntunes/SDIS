@@ -48,10 +48,9 @@ public class RecoveryChannelListener implements Runnable {
 			String fileID = result[3];
 			int chunkNO = Integer.parseInt(result[4]);
 			MetaDataChunk chunk = new MetaDataChunk(fileID, chunkNO, -1);
-			Peer.chunkReceived.add(chunk.toString());
+			Peer.chunkMsgsReceived.add(chunk.toString());
 		}
-
-		//this.peer.recordsDatabaseToFile();
+		
 	}
 
 }

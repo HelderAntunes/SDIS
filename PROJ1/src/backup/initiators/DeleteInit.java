@@ -8,6 +8,7 @@ import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.util.Set;
 
+import backup.MetaDataChunk;
 import backup.Peer;
 import backup.Utils;
 
@@ -49,10 +50,9 @@ public class DeleteInit implements Runnable {
 				attempts++;
 			}
 			
-			Set<String> keys = Peer.backupDB.keySet();
-			for(String key : keys) {
-				String fileIDOfChunk = key.substring(0, Utils.SIZE_OF_FILEID);
-				if (fileIDOfChunk.equals(fileID)) {
+			Set<MetaDataChunk> keys = Peer.backupDB.keySet();
+			for(MetaDataChunk key : keys) {
+				if (key.fileId.equals(fileID)) {
 					Peer.backupDB.remove(key);
 				}
 			}

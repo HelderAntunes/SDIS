@@ -1,7 +1,8 @@
 package backup;
 
-public class MetaDataChunk {
+public class MetaDataChunk implements java.io.Serializable {
 
+	private static final long serialVersionUID = 1L;
 	public final String fileId;
     public final int chunkNo;
     public final int desiredRepDeg;

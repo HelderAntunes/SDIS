@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import backup.MetaDataChunk;
 import backup.Peer;
 import backup.Utils;
 
@@ -24,6 +25,11 @@ public class Initiator implements Runnable {
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
 				new Thread(new BackupInit(peer, file, i, repDeg, fileSplitted.get(i))).start();
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			
 		}
@@ -39,13 +45,11 @@ public class Initiator implements Runnable {
 			File file = new File(pathFile);
 			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
 			ArrayList<String> nameFiles = new ArrayList<String>();
-			Set<String> backupDB = Peer.backupDB.keySet();
-			for (String key: backupDB) {
-				String fileIDKey = key.substring(0, Utils.SIZE_OF_FILEID);
-				if (fileIDKey.equals(fileID)) {
-					int chunkNO = Integer.parseInt(key.substring(Utils.SIZE_OF_FILEID, key.length()));
-					new Thread(new RestoreInit(peer, file, chunkNO)).start();
-					nameFiles.add(key);
+			Set<MetaDataChunk> backupDB = Peer.backupDB.keySet();
+			for (MetaDataChunk key: backupDB) {
+				if (key.fileId.equals(fileID)) {
+					new Thread(new RestoreInit(peer, file, key.chunkNo)).start();
+					nameFiles.add(key.toString());
 					try {
 						Thread.sleep(200);
 					} catch (InterruptedException e) {
@@ -60,9 +64,7 @@ public class Initiator implements Runnable {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			
-			System.out.println("dsdsd");
-			
+						
 			List<File> files = new ArrayList<File>();
 			
 			for (String name: nameFiles) {

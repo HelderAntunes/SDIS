@@ -46,6 +46,8 @@ public class BackupResponse implements Runnable {
 			this.sendConfirmation();
 		}
 		
+		Peer.recordsDatabaseToFile();
+		
 	}
 	
 	private void saveChunkInFileSystem(MetaDataChunk chunk) {

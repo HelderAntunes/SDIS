@@ -45,13 +45,10 @@ public class DataChannelListener implements Runnable {
         if (result.length == 0)
         	return;
         
-        // PUTCHUNK <Version> <SenderId> <FileId> <ChunkNo> <ReplicationDeg> <CRLF><CRLF><Body>
         if (result[0].equals("PUTCHUNK")) {
+        	Peer.putChunkMsgsReceived.add(new String(buf, 0, buf.length));
         	new Thread(new BackupResponse(this.peer, buf)).start();
         }
-        
-		this.peer.recordsDatabaseToFile();
-
  
     }
 
