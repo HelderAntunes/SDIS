@@ -1,14 +1,13 @@
 package backup.initiators;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
 
 import backup.MetaDataChunk;
 import backup.Peer;
-import backup.Utils;
 
 public class BackupInit implements Runnable {
 
@@ -18,13 +17,18 @@ public class BackupInit implements Runnable {
 	private byte[] msg;
 	private MetaDataChunk chunk;
 
-	public BackupInit(Peer peer, File file, int chunkNo, int repDeg, byte[] body) {
+	public BackupInit(Peer peer, String fileID, int chunkNo, int repDeg, byte[] body) {
 
 		this.peer = peer;
 		this.body = body;
-		String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
-		Peer.nameFileToFileID.put(file.getName(), fileID);
 		this.chunk = new MetaDataChunk(fileID, chunkNo, repDeg);
+		
+		if (!Peer.backupDB.containsKey(chunk)) {
+			Peer.chunksSent.add(this.chunk);
+			Peer.backupDB.put(chunk, new ArrayList<String>());
+			Peer.recordsDatabaseToFile();
+		}
+	
 		this.msg = this.createMsg();
 
 		try {
@@ -40,15 +44,15 @@ public class BackupInit implements Runnable {
 
 		try {
 
+			System.out.println("Init of BackInit thread");
+
 			InetAddress addr = InetAddress.getByName(this.peer.getMdbIP());
 			int attempts = 0;
 			int currRep = 0;
 			int timeOut = 1000;
-
-			System.out.println("Desirable repDeg: " + this.chunk.desiredRepDeg);
 			
 			while (attempts < 5 && currRep < this.chunk.desiredRepDeg) {
-				System.out.println(msg.length);
+				System.out.println("send backup msg--------->" + (attempts+1));
 				mdb.send(new DatagramPacket(msg, msg.length, addr, peer.getMdbPort()));             
 				Thread.sleep(timeOut);
 				attempts++;
@@ -57,7 +61,7 @@ public class BackupInit implements Runnable {
 			}
 
 			System.out.println("End of BackInit thread");
-
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {

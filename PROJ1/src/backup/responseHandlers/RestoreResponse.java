@@ -11,6 +11,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import backup.MetaDataChunk;
 import backup.Peer;
+import backup.Utils;
 
 public class RestoreResponse implements Runnable {
 
@@ -38,21 +39,26 @@ public class RestoreResponse implements Runnable {
 			return;
 		}
 		
+		System.out.println("Init of RestoreResponse");
+		
 		try {
 			int  n = new Random().nextInt(400) + 1;
-			
 			Thread.sleep(n);
+			
 			if(this.noChunkHasArrived()) {
+				
 				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
 				byte[] msgToSend = this.createMsg();
 				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
-				System.out.println("sent in restore response");
 			}
 		} catch (InterruptedException | IOException e) {
 			e.printStackTrace();
 		}
 		
 		Peer.recordsDatabaseToFile();
+		
+		System.out.println("End of RestoreResponse");
+
 	}
 
 	private boolean noChunkHasArrived() {
@@ -61,9 +67,8 @@ public class RestoreResponse implements Runnable {
 		for (int i = 0; i < chunkMsgReceived.size(); i++) {
 
 			String msg = chunkMsgReceived.get(i);
-			String[] msgSplitted = msg.split("\\s+");
-			String fileID = msgSplitted[3];
-			int chunkNO = Integer.parseInt(msgSplitted[4]);
+			String fileID = msg.substring(0, Utils.SIZE_OF_FILEID);
+			int chunkNO = Integer.parseInt(msg.substring(Utils.SIZE_OF_FILEID, msg.length()));
 
 			if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
 				chunkMsgReceived.remove(i);

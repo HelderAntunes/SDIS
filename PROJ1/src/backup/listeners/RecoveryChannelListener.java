@@ -18,7 +18,7 @@ public class RecoveryChannelListener implements Runnable {
 	public RecoveryChannelListener(Peer peer) throws IOException {
 		this.peer = peer;
 		this.mdr = new MulticastSocket(peer.getMdrPort());
-		this.mdr.joinGroup(InetAddress.getByName(this.peer.getMdrIP()));
+		this.mdr.joinGroup(InetAddress.getByName(peer.getMdrIP()));
 	}
 
 	@Override
@@ -40,10 +40,8 @@ public class RecoveryChannelListener implements Runnable {
 		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
 		String msgRcvdString = new String(buf, 0, buf.length);
 		String[] result = msgRcvdString.split("\\s+");
-
 		if (result.length == 0)
 			return;
-
 		if (result[0].equals("CHUNK")) {
 			String fileID = result[3];
 			int chunkNO = Integer.parseInt(result[4]);

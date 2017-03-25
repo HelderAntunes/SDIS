@@ -6,12 +6,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import backup.initiators.Initiator;
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
+import backup.listeners.RecoveryChannelListener;
 
 public class Peer {
 
@@ -28,6 +31,9 @@ public class Peer {
 
 	public static ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB; // chunk string -> peersThatSavedTheChunk[]
 	public static ConcurrentHashMap<String, String > nameFileToFileID; 
+	public static ConcurrentHashMap<String, String > fileIDToNameFile; 
+	public static CopyOnWriteArrayList<MetaDataChunk> chunksSaved;
+	public static CopyOnWriteArrayList<MetaDataChunk> chunksSent;
 	
 	public static CopyOnWriteArrayList<String> chunkMsgsReceived;
 	public static CopyOnWriteArrayList<String> putChunkMsgsReceived;
@@ -36,6 +42,8 @@ public class Peer {
 	public static File serverDir;
 	public static File chunksRestoredDir;
 	public static File filesRestoredDir;
+	
+	public static AtomicBoolean reclaimActive = new AtomicBoolean(false);
 
 	public Peer(String[] args) throws IOException {
 
@@ -57,6 +65,7 @@ public class Peer {
 
 		new Thread(new ControlChannelListener(this)).start();
 		new Thread(new DataChannelListener(this)).start();
+		new Thread(new RecoveryChannelListener(this)).start();
 	}
 
 	/**
@@ -76,18 +85,23 @@ public class Peer {
 
 		if (args[9].equals("putchunk")) {
 			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/WWE   Rest In Peace The Undertaker.mp3", "1"};
+			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav", "2"};
 			new Initiator(peer, "putchunk", argsInitiator);
 		}
 		else if (args[9].equals("deletefile")) {
 			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/WWE   Rest In Peace The Undertaker.mp3"};
+			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav"};
 			new Initiator(peer, "deletefile", argsInitiator);
 		}
 		else if (args[9].equals("getfile")) {
 			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/WWE   Rest In Peace The Undertaker.mp3", "0"};
+			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav", "0"};
 			new Initiator(peer, "getfile", argsInitiator);
+		}
+		else if (args[9].equals("reclaim")) {
+			System.out.println("client peer");
+			String[] argsInitiator = {"64"};
+			new Initiator(peer, "reclaim", argsInitiator);
 		}
 		else if (args[9].equals("server")){
 			System.out.println("server peer");
@@ -139,11 +153,17 @@ public class Peer {
 				ObjectInputStream ois = new ObjectInputStream(new FileInputStream(db_file));
 				Peer.backupDB = (ConcurrentHashMap<MetaDataChunk, ArrayList<String>>) ois.readObject();
 				Peer.nameFileToFileID = (ConcurrentHashMap<String, String>) ois.readObject();
+				Peer.fileIDToNameFile = (ConcurrentHashMap<String, String>) ois.readObject();
+				Peer.chunksSaved = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
+				Peer.chunksSent = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
 				ois.close();
 			}
 			else {
 				Peer.backupDB = new ConcurrentHashMap<MetaDataChunk, ArrayList<String> >();
 				Peer.nameFileToFileID = new ConcurrentHashMap<String, String>();
+				Peer.fileIDToNameFile = new ConcurrentHashMap<String, String>();
+				Peer.chunksSaved = new CopyOnWriteArrayList<MetaDataChunk>();
+				Peer.chunksSent = new CopyOnWriteArrayList<MetaDataChunk>();
 			}
 
 		} catch (IOException e) {
@@ -315,12 +335,41 @@ public class Peer {
 			ObjectOutputStream oos = new ObjectOutputStream(fout);
 			oos.writeObject(Peer.backupDB);
 			oos.writeObject(Peer.nameFileToFileID);
+			oos.writeObject(Peer.fileIDToNameFile);
+			oos.writeObject(Peer.chunksSaved);
+			oos.writeObject(Peer.chunksSent);
 			oos.close();
 			fout.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
+	}
+	
+	public static void printState() {
+		System.out.println("Backup database:\n");
+		Set<MetaDataChunk> keySet = Peer.backupDB.keySet();
+		for (MetaDataChunk key: keySet) {
+			ArrayList<String> peers = Peer.backupDB.get(key);
+			System.out.println("Chunk no " + key.chunkNo + " of file " + key.fileId);
+			System.out.println("Desired replication: " + key.desiredRepDeg);
+			System.out.println("Peers that backup the chunk:");
+			for (String peer: peers) {
+				System.out.print(peer + " ");
+			}
+			System.out.println("\n");
+		}
+	}
+	
+	public static boolean chunkHasBeenSent(MetaDataChunk chunk) {
+		
+		for (MetaDataChunk c: Peer.chunksSent) {
+			if (c.equals(chunk)) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 
 }

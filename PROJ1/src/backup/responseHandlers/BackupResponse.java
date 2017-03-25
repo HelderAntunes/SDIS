@@ -31,22 +31,41 @@ public class BackupResponse implements Runnable {
 	@Override
 	public void run() {
 		
-		MetaDataChunk chunk = new MetaDataChunk(msgRcvdString[3], Integer.parseInt(msgRcvdString[4]), Integer.parseInt(msgRcvdString[5]));
-			
-		if (this.peer.getServerID() == Integer.parseInt(msgRcvdString[2])) {
+		if (Peer.reclaimActive.get()) {
 			return;
 		}
+		
+		MetaDataChunk chunk = new MetaDataChunk(msgRcvdString[3], Integer.parseInt(msgRcvdString[4]), Integer.parseInt(msgRcvdString[5]));
+			
+		if (this.peer.getServerID() == Integer.parseInt(msgRcvdString[2]) || Peer.chunkHasBeenSent(chunk)) {
+			return;
+		}
+		
+		System.out.println("Init of BackupResponse");
 		
 		if (Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
 			this.sendConfirmation();
 		}
 		else if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
 			Peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
+			Peer.chunksSaved.add(chunk);
 			this.saveChunkInFileSystem(chunk);
 			this.sendConfirmation();
 		}
 		
+		for (int i = 0; i < Peer.putChunkMsgsReceived.size(); i++) {
+			String[] msgPutChunk = Peer.putChunkMsgsReceived.get(i).split("\\s+");
+			String fileID_msg = msgPutChunk[3];
+			int chunkNO_msg = Integer.parseInt(msgPutChunk[4]);
+			if (fileID_msg.equals(chunk.fileId) && chunkNO_msg == chunk.chunkNo) {
+				Peer.putChunkMsgsReceived.remove(i);
+				break;
+			}
+		}
+		
 		Peer.recordsDatabaseToFile();
+		
+		System.out.println("End of BackupResponse");
 		
 	}
 	

@@ -41,6 +41,13 @@ public class DeleteResponse implements Runnable {
 			}
 		}
 		
+		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
+			if (Peer.chunksSaved.get(i).fileId.equals(fileID)) {
+				Peer.chunksSaved.remove(i);
+				i--;
+			}
+		}
+		
 		System.out.println("End of delete response!");
 		
 		Peer.recordsDatabaseToFile();

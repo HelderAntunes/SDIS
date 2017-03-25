@@ -94,7 +94,6 @@ public class Utils {
     public static void mergeFiles(List<File> files, File into) throws IOException {
         try (BufferedOutputStream mergingStream = new BufferedOutputStream(new FileOutputStream(into))) {
             for (File f : files) {
-            	System.out.println(f.getName());
                 Files.copy(f.toPath(), mergingStream);
                 f.delete();
             }

@@ -1,13 +1,14 @@
 package backup.initiators;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 
+import backup.MetaDataChunk;
 import backup.Peer;
-import backup.Utils;
 
 public class ReclaimInit implements Runnable {
 	
@@ -17,12 +18,12 @@ public class ReclaimInit implements Runnable {
 	private int chunkNo;
 	private MulticastSocket mc;
 
-	public ReclaimInit(Peer peer, File file, int chunkNo) {
+	public ReclaimInit(Peer peer, String fileID, int chunkNo) {
 
 		this.peer = peer;
-		this.fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
+		this.fileID = fileID;
 		this.chunkNo = chunkNo;
-
+		Peer.reclaimActive.set(true);
 		try {
 			this.mc = new MulticastSocket(peer.getMcPort());
 		} catch (IOException e) {
@@ -36,6 +37,23 @@ public class ReclaimInit implements Runnable {
 		
 		try {
 			System.out.println("Init of ReclaimInit");
+			
+			MetaDataChunk chunk = new MetaDataChunk(this.fileID, this.chunkNo, -1);
+			ArrayList<String> peers = Peer.backupDB.get(chunk);		
+			for (int i = 0; i < peers.size(); i++) {
+				if (peers.get(i).equals(Integer.toString(this.peer.getServerID()))) {
+					peers.remove(i);
+					break;
+				}
+			}
+			
+			CopyOnWriteArrayList<MetaDataChunk> chunksSaved = Peer.chunksSaved;
+			for (int i = 0; i < chunksSaved.size(); i++) {
+				if (chunksSaved.get(i).equals(chunk)) {
+					chunksSaved.remove(i);
+					break;
+				}
+			}
 			
 			byte[] msg = this.createMsg();
 			InetAddress addr = InetAddress.getByName(this.peer.getMcIP());
@@ -58,7 +76,7 @@ public class ReclaimInit implements Runnable {
 
 		String senderID = Integer.toString(this.peer.getServerID());
 		String version = this.peer.getProtocolVersion();
-		String msg = "REMOVED " + version + " " + senderID + " " + fileID + Integer.toString(chunkNo) + " \r\n\r\n";
+		String msg = "REMOVED " + version + " " + senderID + " " + fileID + " " + Integer.toString(chunkNo) + " \r\n\r\n";
 
 		return msg.getBytes();
 	}
