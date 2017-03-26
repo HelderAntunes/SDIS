@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import backup.initiators.Initiator;
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
 import backup.listeners.RecoveryChannelListener;
@@ -29,14 +28,16 @@ public class Peer {
 	private String mdrIP;
 	private int mdrPort;
 
-	public static ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB; // chunk string -> peersThatSavedTheChunk[]
+	// Data to save in file
+	public static ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB;
 	public static ConcurrentHashMap<String, String > nameFileToFileID; 
 	public static ConcurrentHashMap<String, String > fileIDToNameFile; 
-	public static CopyOnWriteArrayList<MetaDataChunk> chunksSaved;
-	public static CopyOnWriteArrayList<MetaDataChunk> chunksSent;
+	public static CopyOnWriteArrayList<MetaDataChunk> chunksSaved; 
+	public static CopyOnWriteArrayList<MetaDataChunk> myChunks; 
 	
-	public static CopyOnWriteArrayList<String> chunkMsgsReceived;
-	public static CopyOnWriteArrayList<String> putChunkMsgsReceived;
+	// Data used to avoid flooding (It is not saved in file)
+	public static CopyOnWriteArrayList<String> chunkMsgsReceived; // data used for restore protocol
+	public static CopyOnWriteArrayList<String> putChunkMsgsReceived; // data used for reclaim protocol
 
 	public static File chunksDir;
 	public static File serverDir;
@@ -50,7 +51,6 @@ public class Peer {
 		this.setProtocolVersion(args[0]);
 		this.setServerID(Integer.parseInt(args[1]));
 		this.serverAccessPoint = args[2];
-		this.setServerPort(Integer.parseInt(serverAccessPoint)); // suppose that run on localhost
 		this.setMcIP(args[3]);
 		this.setMcPort(Integer.parseInt(args[4]));
 		this.setMdbIP(args[5]);
@@ -66,6 +66,7 @@ public class Peer {
 		new Thread(new ControlChannelListener(this)).start();
 		new Thread(new DataChannelListener(this)).start();
 		new Thread(new RecoveryChannelListener(this)).start();
+		new Thread(new RMIServer(this)).start();
 	}
 
 	/**
@@ -75,36 +76,13 @@ public class Peer {
 	 * 1.0 2 1 224.0.0.1 2000 224.0.0.2 2002 224.0.0.3 2003 putchunk
 	 */
 	public static void main(String[] args) {
-		Peer peer;
+		
 		try {
-			peer = new Peer(args);
+			Peer peer = new Peer(args);
+			System.out.println("Peer " + peer.serverID + " started...");
 		} catch (IOException e) {
 			e.printStackTrace();
 			return;
-		}
-
-		if (args[9].equals("putchunk")) {
-			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav", "2"};
-			new Initiator(peer, "putchunk", argsInitiator);
-		}
-		else if (args[9].equals("deletefile")) {
-			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav"};
-			new Initiator(peer, "deletefile", argsInitiator);
-		}
-		else if (args[9].equals("getfile")) {
-			System.out.println("client peer");
-			String[] argsInitiator = {"/home/helder/workspace/sdis-proj1/files/riso.wav", "0"};
-			new Initiator(peer, "getfile", argsInitiator);
-		}
-		else if (args[9].equals("reclaim")) {
-			System.out.println("client peer");
-			String[] argsInitiator = {"64"};
-			new Initiator(peer, "reclaim", argsInitiator);
-		}
-		else if (args[9].equals("server")){
-			System.out.println("server peer");
 		}
 		
 	}
@@ -155,7 +133,7 @@ public class Peer {
 				Peer.nameFileToFileID = (ConcurrentHashMap<String, String>) ois.readObject();
 				Peer.fileIDToNameFile = (ConcurrentHashMap<String, String>) ois.readObject();
 				Peer.chunksSaved = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
-				Peer.chunksSent = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
+				Peer.myChunks = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
 				ois.close();
 			}
 			else {
@@ -163,7 +141,7 @@ public class Peer {
 				Peer.nameFileToFileID = new ConcurrentHashMap<String, String>();
 				Peer.fileIDToNameFile = new ConcurrentHashMap<String, String>();
 				Peer.chunksSaved = new CopyOnWriteArrayList<MetaDataChunk>();
-				Peer.chunksSent = new CopyOnWriteArrayList<MetaDataChunk>();
+				Peer.myChunks = new CopyOnWriteArrayList<MetaDataChunk>();
 			}
 
 		} catch (IOException e) {
@@ -176,6 +154,10 @@ public class Peer {
 	/***************************************************/
 	/********* BEGIN OF GETTERS AND SETTERS ************/
 	/***************************************************/
+	
+	public String getServerAccessPoint() {
+		return serverAccessPoint;
+	}
 
 	public String getProtocolVersion() {
 		return protocolVersion;
@@ -337,7 +319,7 @@ public class Peer {
 			oos.writeObject(Peer.nameFileToFileID);
 			oos.writeObject(Peer.fileIDToNameFile);
 			oos.writeObject(Peer.chunksSaved);
-			oos.writeObject(Peer.chunksSent);
+			oos.writeObject(Peer.myChunks);
 			oos.close();
 			fout.close();
 		} catch (IOException e) {
@@ -361,9 +343,9 @@ public class Peer {
 		}
 	}
 	
-	public static boolean chunkHasBeenSent(MetaDataChunk chunk) {
+	public static boolean isMyChunk(MetaDataChunk chunk) {
 		
-		for (MetaDataChunk c: Peer.chunksSent) {
+		for (MetaDataChunk c: Peer.myChunks) {
 			if (c.equals(chunk)) {
 				return true;
 			}

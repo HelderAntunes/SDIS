@@ -37,7 +37,7 @@ public class BackupResponse implements Runnable {
 		
 		MetaDataChunk chunk = new MetaDataChunk(msgRcvdString[3], Integer.parseInt(msgRcvdString[4]), Integer.parseInt(msgRcvdString[5]));
 			
-		if (this.peer.getServerID() == Integer.parseInt(msgRcvdString[2]) || Peer.chunkHasBeenSent(chunk)) {
+		if (this.peer.getServerID() == Integer.parseInt(msgRcvdString[2]) || Peer.isMyChunk(chunk)) {
 			return;
 		}
 		

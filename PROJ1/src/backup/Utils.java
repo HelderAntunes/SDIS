@@ -22,6 +22,7 @@ public class Utils {
 	public static final String CHUNKS_DIR_NAME = "chunks";
 	public static final String CHUNKS_RESTORED_DIR_NAME = "chunks_restored";
 	public static final String FILES_RESTORED_DIR_NAME = "files_restored";
+	public static final int PORT_RMI_REGISTRY = 1051;
 
 
     /**

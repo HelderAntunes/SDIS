@@ -24,7 +24,7 @@ public class BackupInit implements Runnable {
 		this.chunk = new MetaDataChunk(fileID, chunkNo, repDeg);
 		
 		if (!Peer.backupDB.containsKey(chunk)) {
-			Peer.chunksSent.add(this.chunk);
+			Peer.myChunks.add(this.chunk);
 			Peer.backupDB.put(chunk, new ArrayList<String>());
 			Peer.recordsDatabaseToFile();
 		}
