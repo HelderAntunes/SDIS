@@ -63,9 +63,7 @@ public class RestoreInit implements Runnable {
 					String fileID = result[3];
 					int chunkNO = Integer.parseInt(result[4]);
 					if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
-						System.out.println("tamanho do buf " + buf.length);
 						byte[] body = Utils.getBodyOfMsg(buf);
-						System.out.println("tamanho do body " + body.length);
 						this.saveRestoredChunk(body);
 						break;
 					}
