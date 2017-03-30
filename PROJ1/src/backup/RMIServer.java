@@ -43,20 +43,25 @@ public class RMIServer implements Runnable, I_RMICalls {
 	}
 
 	@Override
-	public void call(String command, String[] args) throws RemoteException {
+	public String call(String command, String[] args) throws RemoteException {
 		
 		if (command.equals("BACKUP")) {
 			// args = [pathFile, repDeg]
 			String pathFile = args[0];
 			int repDeg = Integer.parseInt(args[1]);
-
+			
 			File file = new File(pathFile);
+			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
+			for (int i = 0; i < Peer.myFiles.size(); i++) {
+				if (fileID.equals(Peer.myFiles.get(i).id)) {
+					return "That file has already been saved.";
+				}
+			}
+			
+			Peer.myFiles.add(new MetaDataFile(file.getName(), file.getAbsolutePath(), fileID, repDeg));
 
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
-				String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
-				Peer.nameFileToFileID.put(file.getName(), fileID);
-				Peer.fileIDToNameFile.put(fileID, file.getName());
 				new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))).start();
 				try {
 					Thread.sleep(200);
@@ -64,6 +69,8 @@ public class RMIServer implements Runnable, I_RMICalls {
 					e.printStackTrace();
 				}
 			}
+			
+			MetaDataChunk.last_id = 0;
 
 		}
 		else if (command.equals("DELETE")) {
@@ -141,8 +148,10 @@ public class RMIServer implements Runnable, I_RMICalls {
 			
 		}
 		else if (command.equals("STATE")) {
-			Peer.printState();
+			return Peer.printState();
 		}
+		
+		return "Command sent with success.";
 	}
 
 }

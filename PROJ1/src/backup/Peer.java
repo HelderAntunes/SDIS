@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,14 +27,13 @@ public class Peer {
 	private String mdrIP;
 	private int mdrPort;
 
-	// Data to save in file
+	// Data to save in file (Meta data)
 	public static ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB;
-	public static ConcurrentHashMap<String, String > nameFileToFileID; 
-	public static ConcurrentHashMap<String, String > fileIDToNameFile; 
 	public static CopyOnWriteArrayList<MetaDataChunk> chunksSaved; 
 	public static CopyOnWriteArrayList<MetaDataChunk> myChunks; 
+	public static CopyOnWriteArrayList<MetaDataFile> myFiles; 
 	
-	// Data used to avoid flooding (It is not saved in file)
+	// Data of messages used to avoid flooding (It is not saved in file)
 	public static CopyOnWriteArrayList<String> chunkMsgsReceived; // data used for restore protocol
 	public static CopyOnWriteArrayList<String> putChunkMsgsReceived; // data used for reclaim protocol
 
@@ -45,6 +43,10 @@ public class Peer {
 	public static File filesRestoredDir;
 	
 	public static AtomicBoolean reclaimActive = new AtomicBoolean(false);
+	
+	public static int maxSpaceDisk_bytes = Utils.MAX_SPACE_DISK;
+	public static int spaceUsed_bytes = 0;
+
 
 	public Peer(String[] args) throws IOException {
 
@@ -130,18 +132,16 @@ public class Peer {
 			if(db_file.exists() && !db_file.isDirectory()) { 
 				ObjectInputStream ois = new ObjectInputStream(new FileInputStream(db_file));
 				Peer.backupDB = (ConcurrentHashMap<MetaDataChunk, ArrayList<String>>) ois.readObject();
-				Peer.nameFileToFileID = (ConcurrentHashMap<String, String>) ois.readObject();
-				Peer.fileIDToNameFile = (ConcurrentHashMap<String, String>) ois.readObject();
 				Peer.chunksSaved = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
 				Peer.myChunks = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
+				Peer.myFiles = (CopyOnWriteArrayList<MetaDataFile>) ois.readObject();
 				ois.close();
 			}
 			else {
 				Peer.backupDB = new ConcurrentHashMap<MetaDataChunk, ArrayList<String> >();
-				Peer.nameFileToFileID = new ConcurrentHashMap<String, String>();
-				Peer.fileIDToNameFile = new ConcurrentHashMap<String, String>();
 				Peer.chunksSaved = new CopyOnWriteArrayList<MetaDataChunk>();
 				Peer.myChunks = new CopyOnWriteArrayList<MetaDataChunk>();
+				Peer.myFiles = new CopyOnWriteArrayList<MetaDataFile>();
 			}
 
 		} catch (IOException e) {
@@ -316,10 +316,9 @@ public class Peer {
 			FileOutputStream fout = new FileOutputStream(db_file);
 			ObjectOutputStream oos = new ObjectOutputStream(fout);
 			oos.writeObject(Peer.backupDB);
-			oos.writeObject(Peer.nameFileToFileID);
-			oos.writeObject(Peer.fileIDToNameFile);
 			oos.writeObject(Peer.chunksSaved);
 			oos.writeObject(Peer.myChunks);
+			oos.writeObject(Peer.myFiles);
 			oos.close();
 			fout.close();
 		} catch (IOException e) {
@@ -328,19 +327,43 @@ public class Peer {
 
 	}
 	
-	public static void printState() {
-		System.out.println("Backup database:\n");
-		Set<MetaDataChunk> keySet = Peer.backupDB.keySet();
-		for (MetaDataChunk key: keySet) {
-			ArrayList<String> peers = Peer.backupDB.get(key);
-			System.out.println("Chunk no " + key.chunkNo + " of file " + key.fileId);
-			System.out.println("Desired replication: " + key.desiredRepDeg);
-			System.out.println("Peers that backup the chunk:");
-			for (String peer: peers) {
-				System.out.print(peer + " ");
+	public static String printState() {
+		
+		StringBuilder sb = new StringBuilder("");
+		
+		sb.append("Local service state information\n\n");
+		
+		sb.append("Files whose backup it has initiated:\n");
+		if (Peer.myFiles.size() == 0)
+			sb.append("No backup has initiated.\n");
+		for (MetaDataFile myFile: Peer.myFiles) {
+			sb.append("Pathname: " + myFile.path + "\n");
+			sb.append("Id in the backup service: " + myFile.id + "\n");
+			sb.append("Desired replication degree: " + myFile.repDeg + "\n");
+			sb.append("\nChunks of file:\n");
+			
+			for (MetaDataChunk myChunk: Peer.myChunks) {
+				sb.append("Id of chunk: " + myChunk.toString() + "\n");
+				sb.append("Perceived replication degree: " + Peer.backupDB.get(myChunk).size() + "\n");
 			}
-			System.out.println("\n");
 		}
+		
+		sb.append("\nChunks stored:\n");
+		if (Peer.chunksSaved.size() == 0)
+			sb.append("No chunk was stored.\n");
+		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
+			MetaDataChunk chunk = Peer.chunksSaved.get(i);
+			sb.append("id: " + chunk.toString() + "\n");
+			long size_kbytes = new File(Peer.chunksDir, chunk.toString()).length() / 1000;
+			sb.append("size (KBytes): " + size_kbytes + "\n");
+			sb.append("Perceived replication degree: " + Peer.backupDB.get(chunk).size() + "\n");	
+		}
+		
+		sb.append("\nTotal of space in disk (KBytes): " + Peer.maxSpaceDisk_bytes/1000 + "\n");
+		sb.append("Total of used space (KBytes): " + Peer.spaceUsed_bytes/1000 + "\n");
+
+		
+		return sb.toString();
 	}
 	
 	public static boolean isMyChunk(MetaDataChunk chunk) {
@@ -352,6 +375,12 @@ public class Peer {
 		}
 		
 		return false;
+	}
+	
+	public void printTab(int numSpaces) {
+		for (int i = 0; i < numSpaces; i++) {
+			System.out.print(" ");
+		}
 	}
 
 }

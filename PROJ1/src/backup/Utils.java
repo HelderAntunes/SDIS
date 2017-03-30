@@ -23,6 +23,8 @@ public class Utils {
 	public static final String CHUNKS_RESTORED_DIR_NAME = "chunks_restored";
 	public static final String FILES_RESTORED_DIR_NAME = "files_restored";
 	public static final int PORT_RMI_REGISTRY = 1051;
+	public static final int MAX_SPACE_DISK = 64000 * 1000; // 1000 chunks at most.
+	public static final int ATTEMPTS_ON_DELETE = 2;
 
 
     /**

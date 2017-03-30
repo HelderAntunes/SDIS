@@ -9,6 +9,7 @@ import java.net.UnknownHostException;
 import java.util.Set;
 
 import backup.MetaDataChunk;
+import backup.MetaDataFile;
 import backup.Peer;
 import backup.Utils;
 
@@ -44,16 +45,31 @@ public class DeleteInit implements Runnable {
 			int attempts = 0;
 			int timeOut = 1000;
 
-			while (attempts < 2) {
+			while (attempts < Utils.ATTEMPTS_ON_DELETE) {
 				this.mc.send(new DatagramPacket(msg, msg.length, addr, this.peer.getMcPort()));
 				Thread.sleep(timeOut);
 				attempts++;
+			}
+			
+			for (int i = 0; i < Peer.myFiles.size(); i++) {
+				MetaDataFile myFile = Peer.myFiles.get(i);
+				if (myFile.id.equals(fileID)) {
+					Peer.myFiles.remove(i);
+					i--;
+				}
 			}
 			
 			Set<MetaDataChunk> keys = Peer.backupDB.keySet();
 			for(MetaDataChunk key : keys) {
 				if (key.fileId.equals(fileID)) {
 					Peer.backupDB.remove(key);
+					for (int i = 0; i < Peer.myChunks.size(); i++) {
+						MetaDataChunk chunk = Peer.myChunks.get(i);
+						if (chunk.fileId.equals(fileID)) {
+							Peer.myChunks.remove(i);
+							i--;
+						}
+					}
 				}
 			}
 

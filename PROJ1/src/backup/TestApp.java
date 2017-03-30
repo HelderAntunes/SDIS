@@ -16,12 +16,12 @@ public class TestApp {
 		String subProtocol = args[1];
 		String[] argProtocol = Arrays.copyOfRange(args, 2, args.length);
 		
-		
 		try {
 			Registry registry = LocateRegistry.getRegistry(Utils.PORT_RMI_REGISTRY);
 			I_RMICalls stub = (I_RMICalls) registry.lookup(peerAp);
 			
-			stub.call(subProtocol, argProtocol);
+			String response = stub.call(subProtocol, argProtocol);
+			System.out.println(response);
 		} catch (RemoteException | NotBoundException e) {
 			e.printStackTrace();
 		}
