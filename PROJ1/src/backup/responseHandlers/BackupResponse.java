@@ -58,15 +58,7 @@ public class BackupResponse implements Runnable {
 			this.sendConfirmation();
 		}
 		
-		for (int i = 0; i < Peer.putChunkMsgsReceived.size(); i++) {
-			String[] msgPutChunk = Peer.putChunkMsgsReceived.get(i).split("\\s+");
-			String fileID_msg = msgPutChunk[3];
-			int chunkNO_msg = Integer.parseInt(msgPutChunk[4]);
-			if (fileID_msg.equals(chunk.fileId) && chunkNO_msg == chunk.chunkNo) {
-				Peer.putChunkMsgsReceived.remove(i);
-				break;
-			}
-		}
+		Peer.remPutChunkMsgOfAChunk(chunk);
 		
 		Peer.recordsDatabaseToFile();
 		

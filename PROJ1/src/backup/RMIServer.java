@@ -52,22 +52,12 @@ public class RMIServer implements Runnable, I_RMICalls {
 			
 			File file = new File(pathFile);
 			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
-			for (int i = 0; i < Peer.myFiles.size(); i++) {
-				if (fileID.equals(Peer.myFiles.get(i).id)) {
-					return "That file has already been saved.";
-				}
-			}
 			
 			Peer.myFiles.add(new MetaDataFile(file.getName(), file.getAbsolutePath(), fileID, repDeg));
 
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
 				new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))).start();
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
 			}
 			
 			MetaDataChunk.last_id = 0;
@@ -93,11 +83,6 @@ public class RMIServer implements Runnable, I_RMICalls {
 				if (key.fileId.equals(fileID)) {
 					new Thread(new RestoreInit(peer, file, key.chunkNo)).start();
 					nameFiles.add(key.toString());
-					try {
-						Thread.sleep(200);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
 				}
 			}
 			Collections.sort(nameFiles);
