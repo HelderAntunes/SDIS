@@ -58,6 +58,11 @@ public class RMIServer implements Runnable, I_RMICalls {
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
 				new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))).start();
+				try {
+					Thread.sleep(400);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			
 			MetaDataChunk.last_id = 0;
@@ -82,6 +87,11 @@ public class RMIServer implements Runnable, I_RMICalls {
 			for (MetaDataChunk key: backupDB) {
 				if (key.fileId.equals(fileID)) {
 					new Thread(new RestoreInit(peer, file, key.chunkNo)).start();
+					try {
+						Thread.sleep(400);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 					nameFiles.add(key.toString());
 				}
 			}
@@ -116,6 +126,16 @@ public class RMIServer implements Runnable, I_RMICalls {
 			int spaceReclaim_bytes = Integer.parseInt(args[0]) * 1000;
 			File[] chunkFiles = Peer.chunksDir.listFiles();
 			
+			if (Peer.maxSpaceDisk_bytes < spaceReclaim_bytes) {
+				return "Error: Peer max space in disck = " + Peer.maxSpaceDisk_bytes + " bytes < " + 
+						spaceReclaim_bytes + ". Try reduce the space to reclaim.";
+			}
+			
+			Peer.maxSpaceDisk_bytes -= spaceReclaim_bytes;
+			if (Peer.spaceUsed_bytes < Peer.maxSpaceDisk_bytes) {
+				return "Command sent successfully. Max space of peer = " + Peer.maxSpaceDisk_bytes/1000 + " KByte.";
+			}
+			
 			int spaceSaved = 0;
 			for (File file : chunkFiles) {
 				
@@ -128,12 +148,20 @@ public class RMIServer implements Runnable, I_RMICalls {
 				int chunkNO = Integer.parseInt(fileName.substring(Utils.SIZE_OF_FILEID, fileName.length()));
 	
 				new Thread(new ReclaimInit(peer, fileOfChunk, chunkNO)).start();
+				Peer.spaceUsed_bytes -= file.length();
 				file.delete();
+				
+				if (Peer.spaceUsed_bytes < Peer.maxSpaceDisk_bytes) {
+					return "Command sent successfully. Max space of peer = " + Peer.maxSpaceDisk_bytes/1000 + " KByte.";
+				}
 			}
 			
 		}
 		else if (command.equals("STATE")) {
 			return Peer.printState();
+		}
+		else {
+			return "Error: command not found";
 		}
 		
 		return "Command sent with success.";

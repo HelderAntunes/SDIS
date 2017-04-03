@@ -31,10 +31,6 @@ public class BackupResponse implements Runnable {
 	@Override
 	public void run() {
 		
-		if (Peer.reclaimActive.get()) {
-			return;
-		}
-		
 		if (Utils.getBodyOfMsg(this.msgRcvd).length + Peer.spaceUsed_bytes 
 				> Peer.maxSpaceDisk_bytes) {
 			return;
@@ -51,7 +47,7 @@ public class BackupResponse implements Runnable {
 		if (Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
 			this.sendConfirmation();
 		}
-		else if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
+		else if (true){
 			Peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
 			Peer.chunksSaved.add(chunk);
 			this.saveChunkInFileSystem(chunk);

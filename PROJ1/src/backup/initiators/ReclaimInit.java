@@ -23,7 +23,6 @@ public class ReclaimInit implements Runnable {
 		this.peer = peer;
 		this.fileID = fileID;
 		this.chunkNo = chunkNo;
-		Peer.reclaimActive.set(true);
 		try {
 			this.mc = new MulticastSocket(peer.getMcPort());
 		} catch (IOException e) {

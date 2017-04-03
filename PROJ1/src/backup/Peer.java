@@ -8,7 +8,6 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
@@ -41,9 +40,7 @@ public class Peer {
 	public static File serverDir;
 	public static File chunksRestoredDir;
 	public static File filesRestoredDir;
-	
-	public static AtomicBoolean reclaimActive = new AtomicBoolean(false);
-	
+		
 	public static int maxSpaceDisk_bytes = Utils.MAX_SPACE_DISK;
 	public static int spaceUsed_bytes = 0;
 
