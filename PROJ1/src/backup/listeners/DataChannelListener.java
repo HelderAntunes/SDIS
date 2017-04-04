@@ -5,6 +5,8 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import backup.Peer;
 import backup.Utils;
@@ -14,6 +16,7 @@ public class DataChannelListener implements Runnable {
 	
 	private Peer peer;
     private MulticastSocket mdb;
+    private ExecutorService executor = Executors.newFixedThreadPool(5);
     
     public DataChannelListener(Peer peer) throws IOException {
         this.peer = peer;
@@ -45,9 +48,13 @@ public class DataChannelListener implements Runnable {
         if (result.length == 0)
         	return;
         
+        if (result[2].equals(Integer.toString(this.peer.getServerID()))) {
+			return;
+		}
+        
         if (result[0].equals("PUTCHUNK")) {
         	Peer.putChunkMsgsReceived.add(new String(buf, 0, buf.length));
-        	new Thread(new BackupResponse(this.peer, buf)).start();
+        	this.executor.execute(new Thread(new BackupResponse(this.peer, buf)));
         }
  
     }

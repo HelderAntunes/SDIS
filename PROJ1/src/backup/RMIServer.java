@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import backup.initiators.BackupInit;
 import backup.initiators.DeleteInit;
@@ -20,6 +22,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 	
 	private String objRemoteName;
 	private Peer peer;
+    private ExecutorService executor = Executors.newFixedThreadPool(5);
 
 	public RMIServer(Peer peer) {
 		this.objRemoteName = peer.getServerAccessPoint();
@@ -57,12 +60,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
-				new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))).start();
-				try {
-					Thread.sleep(400);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				this.executor.execute(new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))));
 			}
 			
 			MetaDataChunk.last_id = 0;
@@ -72,7 +70,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 			// args = [pathFile]
 			String pathFile = args[0];
 			File file = new File(pathFile);
-			new Thread(new DeleteInit(peer, file)).start();
+			this.executor.execute(new Thread(new DeleteInit(peer, file)));
 		}
 		else if (command.equals("RESTORE")) {
 			
@@ -86,12 +84,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 			Set<MetaDataChunk> backupDB = Peer.backupDB.keySet();
 			for (MetaDataChunk key: backupDB) {
 				if (key.fileId.equals(fileID)) {
-					new Thread(new RestoreInit(peer, file, key.chunkNo)).start();
-					try {
-						Thread.sleep(400);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+					this.executor.execute(new Thread(new RestoreInit(peer, file, key.chunkNo)));
 					nameFiles.add(key.toString());
 				}
 			}
@@ -146,8 +139,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 				String fileName = file.getName();
 				String fileOfChunk = fileName.substring(0, Utils.SIZE_OF_FILEID);
 				int chunkNO = Integer.parseInt(fileName.substring(Utils.SIZE_OF_FILEID, fileName.length()));
-	
-				new Thread(new ReclaimInit(peer, fileOfChunk, chunkNO)).start();
+				this.executor.execute(new Thread(new ReclaimInit(peer, fileOfChunk, chunkNO)));
 				Peer.spaceUsed_bytes -= file.length();
 				file.delete();
 				
@@ -158,7 +150,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 			
 		}
 		else if (command.equals("STATE")) {
-			return Peer.printState();
+			return this.peer.printState();
 		}
 		else {
 			return "Error: command not found";

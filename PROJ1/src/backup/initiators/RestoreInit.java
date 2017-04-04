@@ -1,13 +1,10 @@
 package backup.initiators;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.Arrays;
 
 import backup.MetaDataChunk;
 import backup.Peer;
@@ -46,36 +43,15 @@ public class RestoreInit implements Runnable {
 			byte[] msg = this.createMsg();
 			mc.send(new DatagramPacket(msg, msg.length, addr, peer.getMcPort()));   
 			
-			
-			MulticastSocket mdr = new MulticastSocket(peer.getMdrPort());
-			mdr.joinGroup(InetAddress.getByName(this.peer.getMdrIP()));
-			
-			while(true) {
-
-				byte[] buf = new byte[Utils.MAX_SIZE_CHUNK+3000];
-				DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
-				mdr.receive(msgRcvd);
-				buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
-				String msgRcvdString = new String(buf, 0, buf.length);
-				String[] result = msgRcvdString.split("\\s+");
-				//  "CHUNK <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF><Body>"
-				if (result[0].equals("CHUNK")) {
-					String fileID = result[3];
-					int chunkNO = Integer.parseInt(result[4]);
-					if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
-						byte[] body = Utils.getBodyOfMsg(buf);
-						this.saveRestoredChunk(body);
-						break;
-					}
-				}
-				
+			while(!this.peer.saveChunkWhenReceiveChunkMsg(chunk)) {
+				Thread.sleep(400);
 			}
-
-			mdr.close();
 
 			System.out.println("End of RestoreInit thread");
 
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
@@ -96,21 +72,6 @@ public class RestoreInit implements Runnable {
 				chunkNo + " \r\n\r\n";
 
 		return msg.getBytes();
-	}
-
-	private void saveRestoredChunk(byte[] body) {
-
-		try {
-			File file = new File(Peer.chunksRestoredDir, chunk.toString());
-			FileOutputStream outputStream = new FileOutputStream(file);
-			outputStream.write(body);
-			outputStream.close();
-
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 
 }

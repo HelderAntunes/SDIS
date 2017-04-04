@@ -5,6 +5,8 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import backup.MetaDataChunk;
 import backup.Peer;
@@ -16,6 +18,7 @@ public class ControlChannelListener implements Runnable {
 	
 	private Peer peer;
     private MulticastSocket mc;
+    private ExecutorService executor = Executors.newFixedThreadPool(5);
     
     public ControlChannelListener(Peer peer) throws IOException {
     	this.peer = peer;
@@ -45,6 +48,10 @@ public class ControlChannelListener implements Runnable {
 		if (result.length == 0)
 			return;
 		
+		if (result[2].equals(Integer.toString(this.peer.getServerID()))) {
+			return;
+		}
+		
 		if (result[0].equals("STORED")) {
 			Peer.recordsBackupIfNeeded(new MetaDataChunk(result[3], Integer.parseInt(result[4]), 1), result[2]);
 			Peer.recordsDatabaseToFile();
@@ -53,7 +60,7 @@ public class ControlChannelListener implements Runnable {
 			new Thread(new DeleteResponse(this.peer, buf)).start();
 		}
 		else if (result[0].equals("GETCHUNK")) {
-			new Thread(new RestoreResponse(this.peer, buf)).start();
+			this.executor.execute(new Thread(new RestoreResponse(this.peer, buf)));
 		}
 		else if (result[0].equals("REMOVED")) {
 			new Thread(new ReclaimResponse(this.peer, buf)).start();

@@ -7,11 +7,9 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.nio.file.Files;
 import java.util.Random;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import backup.MetaDataChunk;
 import backup.Peer;
-import backup.Utils;
 
 public class RestoreResponse implements Runnable {
 
@@ -36,7 +34,6 @@ public class RestoreResponse implements Runnable {
 
 		if (serverID.equals(Integer.toString(this.peer.getServerID())) ||
 				!Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
-			System.out.println("1");
 			return;
 		}
 		
@@ -45,18 +42,10 @@ public class RestoreResponse implements Runnable {
 		try {
 			int n = new Random().nextInt(400) + 1;
 			Thread.sleep(n);
-			System.out.println("3");
-			if(this.noChunkHasArrived()) {
-				
+			if(Peer.noChunkHasArrived(chunk)) {
 				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
 				byte[] msgToSend = this.createMsg();
 				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
-				while(!this.remChunkMsgSent()) {
-					Thread.sleep(200);
-				}
-			}
-			else {
-				System.out.println("2");
 			}
 		} catch (InterruptedException | IOException e) {
 			e.printStackTrace();
@@ -66,43 +55,6 @@ public class RestoreResponse implements Runnable {
 		
 		System.out.println("End of RestoreResponse");
 
-	}
-	
-	private synchronized boolean remChunkMsgSent() {
-		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkMsgsReceived;
-		for (int i = 0; i < chunkMsgReceived.size(); i++) {
-
-			String msg = chunkMsgReceived.get(i);
-			String fileID = msg.substring(0, Utils.SIZE_OF_FILEID);
-			int chunkNO = Integer.parseInt(msg.substring(Utils.SIZE_OF_FILEID, msg.length()));
-
-			if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
-				chunkMsgReceived.remove(i);
-				return true;
-			}
-
-		}
-
-		return false;
-	}
-
-	private synchronized boolean noChunkHasArrived() {
-
-		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkMsgsReceived;
-		for (int i = 0; i < chunkMsgReceived.size(); i++) {
-
-			String msg = chunkMsgReceived.get(i);
-			String fileID = msg.substring(0, Utils.SIZE_OF_FILEID);
-			int chunkNO = Integer.parseInt(msg.substring(Utils.SIZE_OF_FILEID, msg.length()));
-
-			if (fileID.equals(this.chunk.fileId) && chunkNO == this.chunk.chunkNo) {
-				chunkMsgReceived.remove(i);
-				return false;
-			}
-
-		}
-
-		return true;
 	}
 
 	/**

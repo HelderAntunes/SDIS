@@ -1,6 +1,7 @@
 package backup;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -35,6 +36,7 @@ public class Peer {
 	// Data of messages used to avoid flooding (It is not saved in file)
 	public static CopyOnWriteArrayList<String> chunkMsgsReceived; // data used for restore protocol
 	public static CopyOnWriteArrayList<String> putChunkMsgsReceived; // data used for reclaim protocol
+	public static CopyOnWriteArrayList<byte[]> chunkMsgsReceived2;
 
 	public static File chunksDir;
 	public static File serverDir;
@@ -59,7 +61,8 @@ public class Peer {
 		
 		Peer.chunkMsgsReceived = new CopyOnWriteArrayList<String>();
 		Peer.putChunkMsgsReceived = new CopyOnWriteArrayList<String>();
-
+		Peer.chunkMsgsReceived2 = new CopyOnWriteArrayList<byte[]>();
+		
 		this.init();
 
 		new Thread(new ControlChannelListener(this)).start();
@@ -245,7 +248,7 @@ public class Peer {
 	 * @param chunk
 	 * @return array of peer's string
 	 */
-	public static ArrayList<String> getPeersThatSavedTheChunk(MetaDataChunk chunk) {
+	public static synchronized ArrayList<String> getPeersThatSavedTheChunk(MetaDataChunk chunk) {
 		return Peer.backupDB.get(chunk);
 	}
 
@@ -255,7 +258,7 @@ public class Peer {
 	 * @param chunk
 	 * @return true if the peer backup the chunk, false other wise.
 	 */
-	public static boolean backUpAChunkPreviously(String peerId, MetaDataChunk chunk) {
+	public static synchronized boolean backUpAChunkPreviously(String peerId, MetaDataChunk chunk) {
 
 		if (!Peer.backupDB.containsKey(chunk))
 			return false;
@@ -287,8 +290,7 @@ public class Peer {
 	 * @param chunk
 	 * @param peerId
 	 */
-	public static void recordsBackupIfNeeded(MetaDataChunk chunk, String peerId) {
-
+	public static synchronized void recordsBackupIfNeeded(MetaDataChunk chunk, String peerId) {
 		if (!Peer.backupDB.containsKey(chunk)) {
 			ArrayList<String> peersThatBackedUp = new ArrayList<String>();
 			peersThatBackedUp.add(peerId);
@@ -300,7 +302,6 @@ public class Peer {
 				peersThatBackedUp.add(peerId);
 			}
 		}
-
 	}
 
 	/**
@@ -324,7 +325,7 @@ public class Peer {
 
 	}
 	
-	public static String printState() {
+	public String printState() {
 		
 		StringBuilder sb = new StringBuilder("");
 		
@@ -350,6 +351,10 @@ public class Peer {
 			sb.append("No chunk was stored.\n");
 		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
 			MetaDataChunk chunk = Peer.chunksSaved.get(i);
+			
+			if (!Peer.backUpAChunkPreviously(Integer.toString(this.serverID), chunk)) {
+				sb.append("pois...\n");
+			}
 			sb.append("id: " + chunk.toString() + "\n");
 			long size_kbytes = new File(Peer.chunksDir, chunk.toString()).length() / 1000;
 			sb.append("size (KBytes): " + size_kbytes + "\n");
@@ -363,7 +368,7 @@ public class Peer {
 		return sb.toString();
 	}
 	
-	public static boolean isMyChunk(MetaDataChunk chunk) {
+	public static synchronized boolean isMyChunk(MetaDataChunk chunk) {
 		
 		for (MetaDataChunk c: Peer.myChunks) {
 			if (c.equals(chunk)) {
@@ -391,5 +396,61 @@ public class Peer {
 			}
 		}
 	}
+	
+	public static synchronized boolean noChunkHasArrived(MetaDataChunk chunk) {
+
+		CopyOnWriteArrayList<String> chunkMsgReceived = Peer.chunkMsgsReceived;
+		for (int i = 0; i < chunkMsgReceived.size(); i++) {
+
+			String msg = chunkMsgReceived.get(i);
+			String fileID = msg.substring(0, Utils.SIZE_OF_FILEID);
+			int chunkNO = Integer.parseInt(msg.substring(Utils.SIZE_OF_FILEID, msg.length()));
+
+			if (fileID.equals(chunk.fileId) && chunkNO == chunk.chunkNo) {
+				chunkMsgReceived.remove(i);
+				return false;
+			}
+
+		}
+
+		return true;
+	}
+	
+	public synchronized boolean saveChunkWhenReceiveChunkMsg(MetaDataChunk chunk) {
+		
+		for (int i = 0; i < Peer.chunkMsgsReceived2.size(); i++) {
+			byte[] buf = Peer.chunkMsgsReceived2.get(i);
+			String msgRcvdString = new String(buf, 0, buf.length);
+			String[] result = msgRcvdString.split("\\s+");
+			//  "CHUNK <Version> <SenderId> <FileId> <ChunkNo> <CRLF><CRLF><Body>"
+			if (result[0].equals("CHUNK")) {
+				String fileID = result[3];
+				int chunkNO = Integer.parseInt(result[4]);
+				if (fileID.equals(chunk.fileId) && chunkNO == chunk.chunkNo) {
+					byte[] body = Utils.getBodyOfMsg(buf);
+					this.saveRestoredChunk(body, chunk);
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	private synchronized void saveRestoredChunk(byte[] body, MetaDataChunk chunk) {
+
+		try {
+			File file = new File(Peer.chunksRestoredDir, chunk.toString());
+			FileOutputStream outputStream = new FileOutputStream(file);
+			outputStream.write(body);
+			outputStream.close();
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 
 }
