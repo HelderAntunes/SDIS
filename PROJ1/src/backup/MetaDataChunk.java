@@ -6,6 +6,7 @@ public class MetaDataChunk implements java.io.Serializable {
 	public final String fileId;
     public final int chunkNo;
     public final int desiredRepDeg;
+    public int currRep = 0;
     
     public final int id;
     public static int last_id = 0;

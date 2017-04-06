@@ -16,7 +16,7 @@ public class DataChannelListener implements Runnable {
 	
 	private Peer peer;
     private MulticastSocket mdb;
-    private ExecutorService executor = Executors.newFixedThreadPool(5);
+    private ExecutorService executor = Executors.newFixedThreadPool(Utils.MAX_NO_THREADS);
     
     public DataChannelListener(Peer peer) throws IOException {
         this.peer = peer;

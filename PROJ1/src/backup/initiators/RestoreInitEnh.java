@@ -10,14 +10,13 @@ import backup.MetaDataChunk;
 import backup.Peer;
 import backup.Utils;
 
-public class RestoreInit implements Runnable {
-
+public class RestoreInitEnh implements Runnable {
 
 	private Peer peer;
 	private MetaDataChunk chunk;
 	private MulticastSocket mc;
 
-	public RestoreInit(Peer peer, File file, int chunkNo) {
+	public RestoreInitEnh(Peer peer, File file, int chunkNo) {
 
 		this.peer = peer;
 		String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
@@ -42,16 +41,11 @@ public class RestoreInit implements Runnable {
 
 			byte[] msg = this.createMsg();
 			mc.send(new DatagramPacket(msg, msg.length, addr, peer.getMcPort()));   
-
-			while(!this.peer.saveChunkWhenReceiveChunkMsg(chunk)) {
-				Thread.sleep(400);
-			}
+		
 
 			System.out.println("End of RestoreInit thread");
 
 		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
 			e.printStackTrace();
 		} 
 
@@ -73,5 +67,4 @@ public class RestoreInit implements Runnable {
 
 		return msg.getBytes();
 	}
-
 }

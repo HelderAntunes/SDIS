@@ -4,11 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import backup.MetaDataChunk;
 import backup.Peer;
+import backup.Utils;
 import backup.initiators.BackupInit;
 
 public class ReclaimResponse implements Runnable {
@@ -53,13 +53,8 @@ public class ReclaimResponse implements Runnable {
 			
 			MetaDataChunk chunk = Peer.chunksSaved.get(i);
 			if(chunk.fileId.equals(fileID) && chunk.chunkNo == chunkNO) {
-
-				int  n = new Random().nextInt(400) + 1;
-				try {
-					Thread.sleep(n);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				
+				Utils.myRandomSleep(Utils.MAX_SLEEP_MS);
 
 				if (this.msgPutChunkWasReceveid(fileID, chunkNO))
 					return;

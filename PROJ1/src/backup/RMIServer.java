@@ -15,14 +15,15 @@ import java.util.concurrent.Executors;
 
 import backup.initiators.BackupInit;
 import backup.initiators.DeleteInit;
+import backup.initiators.DeleteInitEnh;
 import backup.initiators.ReclaimInit;
 import backup.initiators.RestoreInit;
 
 public class RMIServer implements Runnable, I_RMICalls {
-	
+
 	private String objRemoteName;
 	private Peer peer;
-    private ExecutorService executor = Executors.newFixedThreadPool(5);
+	private ExecutorService executor = Executors.newFixedThreadPool(Utils.MAX_NO_THREADS);
 
 	public RMIServer(Peer peer) {
 		this.objRemoteName = peer.getServerAccessPoint();
@@ -32,54 +33,66 @@ public class RMIServer implements Runnable, I_RMICalls {
 	@Override
 	public void run() {
 		try {
-            RMIServer obj = new RMIServer(this.peer);
-            I_RMICalls stub = (I_RMICalls) UnicastRemoteObject.exportObject(obj, 0);
+			RMIServer obj = new RMIServer(this.peer);
+			I_RMICalls stub = (I_RMICalls) UnicastRemoteObject.exportObject(obj, 0);
 
-            // Bind the remote object's stub in the registry
-            Registry registry = LocateRegistry.getRegistry(Utils.PORT_RMI_REGISTRY);
-            registry.rebind(this.objRemoteName, stub);
+			// Bind the remote object's stub in the registry
+			Registry registry = LocateRegistry.getRegistry(Utils.PORT_RMI_REGISTRY);
+			registry.rebind(this.objRemoteName, stub);
 
-        } catch (Exception e) {
-            System.err.println("Server exception: " + e.toString());
-            e.printStackTrace();
-        }
+		} catch (Exception e) {
+			System.err.println("Server exception: " + e.toString());
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	public String call(String command, String[] args) throws RemoteException {
-		
+
 		if (command.equals("BACKUP")) {
-			// args = [pathFile, repDeg]
+
+			// arguments = [pathFile, repDeg]
 			String pathFile = args[0];
 			int repDeg = Integer.parseInt(args[1]);
-			
+
 			File file = new File(pathFile);
 			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
-			
+
 			Peer.myFiles.add(new MetaDataFile(file.getName(), file.getAbsolutePath(), fileID, repDeg));
 
 			ArrayList<byte[]> fileSplitted = Utils.splitFile(file);
 			for (int i = 0; i < fileSplitted.size(); i++) {
 				this.executor.execute(new Thread(new BackupInit(peer, fileID, i, repDeg, fileSplitted.get(i))));
 			}
-			
+
 			MetaDataChunk.last_id = 0;
 
 		}
 		else if (command.equals("DELETE")) {
-			// args = [pathFile]
+
+			// arguments = [pathFile]
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			this.executor.execute(new Thread(new DeleteInit(peer, file)));
 		}
 		else if (command.equals("RESTORE")) {
-			
-			// args = [pathFile]
+
+			// arguments = [pathFile]
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
 			ArrayList<String> nameFiles = new ArrayList<String>();
-			
+
+			boolean found = false;
+			for (int i = 0; i < Peer.myFiles.size(); i++) {
+				if (Peer.myFiles.get(i).name.equals(file.getName())) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				return "Error: File not found.";
+			}
 			// request all chunks
 			Set<MetaDataChunk> backupDB = Peer.backupDB.keySet();
 			for (MetaDataChunk key: backupDB) {
@@ -91,7 +104,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 			Collections.sort(nameFiles);
 
 			List<File> files = new ArrayList<File>();
-			
+
 			// collects all chunks received
 			for (String name: nameFiles) {
 				File chunkFile = new File(Peer.chunksRestoredDir, name);
@@ -104,7 +117,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 				}
 				files.add(chunkFile);
 			}
-			
+
 			// merge the chunks in a unique file
 			try {
 				File fileRestored = new File(Peer.filesRestoredDir, file.getName());
@@ -115,48 +128,64 @@ public class RMIServer implements Runnable, I_RMICalls {
 
 		}
 		else if (command.equals("RECLAIM")) {
-			// args = [sapce(kb)]
+
+			// arguments = [space(KByte)]
 			int spaceReclaim_bytes = Integer.parseInt(args[0]) * 1000;
-			File[] chunkFiles = Peer.chunksDir.listFiles();
-			
+
 			if (Peer.maxSpaceDisk_bytes < spaceReclaim_bytes) {
 				return "Error: Peer max space in disck = " + Peer.maxSpaceDisk_bytes + " bytes < " + 
 						spaceReclaim_bytes + ". Try reduce the space to reclaim.";
 			}
-			
+
 			Peer.maxSpaceDisk_bytes -= spaceReclaim_bytes;
 			if (Peer.spaceUsed_bytes < Peer.maxSpaceDisk_bytes) {
 				return "Command sent successfully. Max space of peer = " + Peer.maxSpaceDisk_bytes/1000 + " KByte.";
 			}
-			
+
+			this.peer.updateRepOfChunksSaved();
+			ArrayList<MetaDataChunk> chunksSavedSorted = new ArrayList<MetaDataChunk>(Peer.chunksSaved);
+			Collections.sort(chunksSavedSorted, new LowDiffRepSorter());
+
 			int spaceSaved = 0;
-			for (File file : chunkFiles) {
-				
+			for (int i = 0; i < chunksSavedSorted.size(); i++) {
+
 				if (spaceSaved >= spaceReclaim_bytes)
 					break;
-				
+
+				MetaDataChunk chunk = chunksSavedSorted.get(i);
+				String fileName = chunk.toString();
+				File file = new File(Peer.chunksDir, fileName);
+				Peer.spaceUsed_bytes -= file.length();
 				spaceSaved += file.length();
-				String fileName = file.getName();
 				String fileOfChunk = fileName.substring(0, Utils.SIZE_OF_FILEID);
 				int chunkNO = Integer.parseInt(fileName.substring(Utils.SIZE_OF_FILEID, fileName.length()));
-				this.executor.execute(new Thread(new ReclaimInit(peer, fileOfChunk, chunkNO)));
-				Peer.spaceUsed_bytes -= file.length();
 				file.delete();
-				
+
+				this.executor.execute(new Thread(new ReclaimInit(peer, fileOfChunk, chunkNO)));
+
 				if (Peer.spaceUsed_bytes < Peer.maxSpaceDisk_bytes) {
 					return "Command sent successfully. Max space of peer = " + Peer.maxSpaceDisk_bytes/1000 + " KByte.";
 				}
+
 			}
-			
 		}
 		else if (command.equals("STATE")) {
+			
 			return this.peer.printState();
 		}
-		else {
-			return "Error: command not found";
+		else if (command.equals("DELETEENH")) {
+			
+			// arguments = [pathFile]
+			String pathFile = args[0];
+			File file = new File(pathFile);
+			this.executor.execute(new Thread(new DeleteInitEnh(peer, file)));
+			
 		}
-		
-		return "Command sent with success.";
+		else {
+			return "Error: command not found.";
+		}
+
+		return "Command sent successfully.";
 	}
 
 }

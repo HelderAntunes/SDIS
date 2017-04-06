@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 public class Utils {
 	
@@ -25,6 +26,8 @@ public class Utils {
 	public static final int PORT_RMI_REGISTRY = 1051;
 	public static final int MAX_SPACE_DISK = 64000 * 1000; // 1000 chunks at most.
 	public static final int ATTEMPTS_ON_DELETE = 2;
+	public static final int MAX_SLEEP_MS = 400;
+	public static final int MAX_NO_THREADS = 5;
 
 
     /**
@@ -89,7 +92,7 @@ public class Utils {
 			}
 		}
 		if (bodyMsg == null) {
-			System.err.println("attr bodyMsg is null (BackupResponse.java 76)");
+			System.err.println("attr bodyMsg is null (BackupResponse.java)");
 		}
 		return bodyMsg;
 	}
@@ -101,6 +104,16 @@ public class Utils {
                 f.delete();
             }
         }
+    }
+    
+    public static void myRandomSleep(int maxSleep) {
+		try {
+			int n = new Random().nextInt(maxSleep+1);
+			Thread.sleep(n);
+			System.out.println("random = " + n);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
     }
     
 }

@@ -6,10 +6,10 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.nio.file.Files;
-import java.util.Random;
 
 import backup.MetaDataChunk;
 import backup.Peer;
+import backup.Utils;
 
 public class RestoreResponse implements Runnable {
 
@@ -40,14 +40,13 @@ public class RestoreResponse implements Runnable {
 		System.out.println("Init of RestoreResponse");
 		
 		try {
-			int n = new Random().nextInt(400) + 1;
-			Thread.sleep(n);
+			Utils.myRandomSleep(Utils.MAX_SLEEP_MS);
 			if(Peer.noChunkHasArrived(chunk)) {
 				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
 				byte[] msgToSend = this.createMsg();
 				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
 			}
-		} catch (InterruptedException | IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		

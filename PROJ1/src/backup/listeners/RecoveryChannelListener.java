@@ -6,7 +6,6 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.Arrays;
 
-import backup.MetaDataChunk;
 import backup.Peer;
 import backup.Utils;
 
@@ -37,18 +36,17 @@ public class RecoveryChannelListener implements Runnable {
 		byte[] buf = new byte[Utils.MAX_SIZE_CHUNK+1024];
 		DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
 		this.mdr.receive(msgRcvd);
+		
 		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
 		String msgRcvdString = new String(buf, 0, buf.length);
 		String[] result = msgRcvdString.split("\\s+");
+		
 		if (result.length == 0)
 			return;
+		
 		if (result[0].equals("CHUNK")) {
-			if (!result[2].equals(Integer.toString(this.peer.getServerID()))) {
-				String fileID = result[3];
-				int chunkNO = Integer.parseInt(result[4]);
-				MetaDataChunk chunk = new MetaDataChunk(fileID, chunkNO, -1);
-				Peer.chunkMsgsReceived.add(chunk.toString());
-				Peer.chunkMsgsReceived2.add(buf);
+			if (!result[2].equals(Integer.toString(this.peer.getServerID()))) {				
+				Peer.chunkMsgsReceived.add(buf);
 			}
 		}
 		
