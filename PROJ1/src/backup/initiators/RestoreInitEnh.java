@@ -35,7 +35,7 @@ public class RestoreInitEnh implements Runnable {
 
 		try {
 
-			System.out.println("Init of RestoreInitENH thread");
+			System.out.println("Init of RestoreInitENH");
 
 			InetAddress addr = InetAddress.getByName(this.peer.getMcIP());
 
@@ -47,7 +47,7 @@ public class RestoreInitEnh implements Runnable {
 			}
 
 
-			System.out.println("End of RestoreInitENH thread");
+			System.out.println("End of RestoreInitENH");
 
 		} catch (IOException e) {
 			e.printStackTrace();

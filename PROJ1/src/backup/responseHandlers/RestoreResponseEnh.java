@@ -49,10 +49,13 @@ public class RestoreResponseEnh implements Runnable {
 		try {
 			Utils.myRandomSleep(Utils.MAX_SLEEP_MS);
 			if(Peer.noChunkHasArrived(chunk)) {
+				System.out.println("send chunk msg");
 				InetAddress addr = InetAddress.getByName(peer.getMdrIP());
 				byte[] msgToSend = this.createMsg();
-				this.mdr.send(new DatagramPacket(msgToSend, msgToSend.length, addr, peer.getMdrPort()));
-				this.udr.send(new DatagramPacket(msgToSend, msgToSend.length, this.iniPeerAddr, Utils.PORT_UNICAST_RECOVERY_LISTENER));
+				byte[] msgToSendHeader = this.createHeaderMsg();
+				this.mdr.send(new DatagramPacket(msgToSendHeader, msgToSendHeader.length, addr, peer.getMdrPort()));
+				int iniPeerID = Integer.parseInt(serverID);
+				this.udr.send(new DatagramPacket(msgToSend, msgToSend.length, this.iniPeerAddr, Utils.PORT_UNICAST_RECOVERY_LISTENER + iniPeerID));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -87,6 +90,19 @@ public class RestoreResponseEnh implements Runnable {
 		System.arraycopy(body, 0, byte_msg, header.length, body.length);
 
 		return byte_msg;
+	}
+	
+	private byte[] createHeaderMsg() {
+
+		String fileID = this.chunk.fileId;
+		String senderID = Integer.toString(this.peer.getServerID());
+		String version = this.peer.getProtocolVersion();
+		String chunkNo = Integer.toString(this.chunk.chunkNo);
+		String msg = "CHUNK " + version + " " + senderID + " " + fileID + " " + 
+				chunkNo + " \r\n\r\n";
+
+		byte[] header = msg.getBytes();
+		return header;
 	}
 
 	private byte[] readChunk() {

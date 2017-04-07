@@ -18,6 +18,7 @@ import backup.initiators.DeleteInit;
 import backup.initiators.DeleteInitEnh;
 import backup.initiators.ReclaimInit;
 import backup.initiators.RestoreInit;
+import backup.initiators.RestoreInitEnh;
 
 public class RMIServer implements Runnable, I_RMICalls {
 
@@ -75,7 +76,7 @@ public class RMIServer implements Runnable, I_RMICalls {
 			File file = new File(pathFile);
 			this.executor.execute(new Thread(new DeleteInit(peer, file)));
 		}
-		else if (command.equals("RESTORE")) {
+		else if (command.equals("RESTORE") || command.equals("RESTOREENH")) {
 
 			// arguments = [pathFile]
 			String pathFile = args[0];
@@ -97,7 +98,10 @@ public class RMIServer implements Runnable, I_RMICalls {
 			Set<MetaDataChunk> backupDB = Peer.backupDB.keySet();
 			for (MetaDataChunk key: backupDB) {
 				if (key.fileId.equals(fileID)) {
-					this.executor.execute(new Thread(new RestoreInit(peer, file, key.chunkNo)));
+					if (this.peer.getProtocolVersion().equals("1.0")) 
+						this.executor.execute(new Thread(new RestoreInit(peer, file, key.chunkNo)));
+					else
+						this.executor.execute(new Thread(new RestoreInitEnh(peer, file, key.chunkNo)));
 					nameFiles.add(key.toString());
 				}
 			}
@@ -170,16 +174,16 @@ public class RMIServer implements Runnable, I_RMICalls {
 			}
 		}
 		else if (command.equals("STATE")) {
-			
+
 			return this.peer.printState();
 		}
 		else if (command.equals("DELETEENH")) {
-			
+
 			// arguments = [pathFile]
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			this.executor.execute(new Thread(new DeleteInitEnh(peer, file)));
-			
+
 		}
 		else {
 			return "Error: command not found.";

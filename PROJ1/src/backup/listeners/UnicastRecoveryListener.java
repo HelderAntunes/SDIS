@@ -19,7 +19,7 @@ public class UnicastRecoveryListener implements Runnable {
 
 		this.peer = peer;
 		try {
-			this.socket = new DatagramSocket(Utils.PORT_UNICAST_RECOVERY_LISTENER);
+			this.socket = new DatagramSocket(Utils.PORT_UNICAST_RECOVERY_LISTENER + peer.getServerID());
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
@@ -51,7 +51,7 @@ public class UnicastRecoveryListener implements Runnable {
 		String[] result = msgRcvdString.split("\\s+");
 
 		if (result[0].equals("CHUNK")) {
-			if (!result[2].equals(Integer.toString(this.peer.getServerID()))) {				
+			if (!result[2].equals(Integer.toString(this.peer.getServerID()))) {		
 				Peer.chunkMsgsReceived.add(buf);
 			}
 		}

@@ -14,6 +14,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
 import backup.listeners.RecoveryChannelListener;
+import backup.listeners.UnicastRecoveryListener;
 
 public class Peer {
 
@@ -72,6 +73,7 @@ public class Peer {
 		new Thread(new DataChannelListener(this)).start();
 		new Thread(new RecoveryChannelListener(this)).start();
 		new Thread(new RMIServer(this)).start();
+		new Thread(new UnicastRecoveryListener(this)).start();
 	}
 
 	/**
