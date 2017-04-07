@@ -155,7 +155,7 @@ public class Peer {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * Save the meta-data in non-volatile memory.
 	 */
@@ -467,7 +467,30 @@ public class Peer {
 
 	public synchronized boolean saveChunkWhenReceiveChunkMsg(MetaDataChunk chunk) {
 
+		ArrayList<byte[]> msgsOfThatChunk = this.getChunkMsgReceivedOfAChunk(chunk);
+
+		if (msgsOfThatChunk.size() == 0)
+			return false;
+
+		byte[] longMsg = msgsOfThatChunk.get(0);
+		for (byte[] msg: msgsOfThatChunk) {
+			if (msg.length > longMsg.length) {
+				longMsg = msg;
+			}
+		}
+
+		byte[] body = Utils.getBodyOfMsg(longMsg);
+		Peer.saveRestoredChunk(body, chunk);
+
+		return true;
+	}
+
+	private ArrayList<byte[]> getChunkMsgReceivedOfAChunk(MetaDataChunk chunk) {
+		
+		ArrayList<byte[]> msgsOfThatChunk = new ArrayList<byte[]>();
+
 		for (int i = 0; i < Peer.chunkMsgsReceived.size(); i++) {
+
 			byte[] buf = Peer.chunkMsgsReceived.get(i);
 			String[] result = new String(buf).split("\\s+");
 
@@ -475,14 +498,12 @@ public class Peer {
 				String fileID = result[3];
 				int chunkNO = Integer.parseInt(result[4]);
 				if (fileID.equals(chunk.fileId) && chunkNO == chunk.chunkNo) {
-					byte[] body = Utils.getBodyOfMsg(buf);
-					Peer.saveRestoredChunk(body, chunk);
-					return true;
+					msgsOfThatChunk.add(buf);
 				}
 			}
 		}
-
-		return false;
+		
+		return msgsOfThatChunk;
 	}
 
 	public TreeSet<String> getPeersThatSavedChunksOfAFile(String fileID) {
@@ -514,7 +535,7 @@ public class Peer {
 
 		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
 			MetaDataChunk chunk = Peer.chunksSaved.get(i);
-			
+
 			if (chunk.fileId.equals(fileID)) {
 				Peer.backupDB.remove(chunk);
 				File fileToDelete = new File(Peer.chunksDir, chunk.toString());
@@ -523,7 +544,7 @@ public class Peer {
 					System.out.println("pois");
 					fileToDelete.delete();
 				}
-				
+
 				Peer.chunksSaved.remove(i);
 				i--;
 			}

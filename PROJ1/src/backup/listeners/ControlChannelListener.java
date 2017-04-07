@@ -15,6 +15,7 @@ import backup.responseHandlers.DeleteResponse;
 import backup.responseHandlers.DeleteResponseEnh;
 import backup.responseHandlers.ReclaimResponse;
 import backup.responseHandlers.RestoreResponse;
+import backup.responseHandlers.RestoreResponseEnh;
 
 public class ControlChannelListener implements Runnable {
 
@@ -77,9 +78,11 @@ public class ControlChannelListener implements Runnable {
 
 		}
 		else if (result[0].equals("GETCHUNK")) {
-
-			this.executor.execute(new Thread(new RestoreResponse(this.peer, buf)));
-
+			
+			if (this.peer.getProtocolVersion().equals("1.0"))
+				this.executor.execute(new Thread(new RestoreResponse(this.peer, buf)));
+			else
+				this.executor.execute(new Thread(new RestoreResponseEnh(this.peer, buf, msgRcvd.getAddress())));
 		}
 		else if (result[0].equals("REMOVED")) {
 

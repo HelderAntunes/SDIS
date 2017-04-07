@@ -35,17 +35,23 @@ public class RestoreInitEnh implements Runnable {
 
 		try {
 
-			System.out.println("Init of RestoreInit thread");
+			System.out.println("Init of RestoreInitENH thread");
 
 			InetAddress addr = InetAddress.getByName(this.peer.getMcIP());
 
 			byte[] msg = this.createMsg();
 			mc.send(new DatagramPacket(msg, msg.length, addr, peer.getMcPort()));   
-		
 
-			System.out.println("End of RestoreInit thread");
+			while(!this.peer.saveChunkWhenReceiveChunkMsg(chunk)) {
+				Thread.sleep(400);
+			}
+
+
+			System.out.println("End of RestoreInitENH thread");
 
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		} 
 
