@@ -8,7 +8,6 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
-import java.util.Random;
 
 import backup.MetaDataChunk;
 import backup.Peer;
@@ -62,12 +61,12 @@ public class BackupResponse implements Runnable {
 			Peer.recordsDatabaseToFile();
 		}
 		else {
+			Utils.myRandomSleep(Utils.MAX_SLEEP_MS);
 			
 			if (Peer.backUpAChunkPreviously(Integer.toString(this.peer.getServerID()), chunk)) {
 				this.sendConfirmation();
 			}
-			else {
-				Utils.myRandomSleep(Utils.MAX_SLEEP_MS);
+			else {	
 				if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
 					this.sendConfirmation();
 					Peer.chunksSaved.add(chunk);
@@ -113,14 +112,9 @@ public class BackupResponse implements Runnable {
 			" " + this.msgRcvdString[3] + " " + this.msgRcvdString[4] + " \r\n\r\n";
 			byte[] byte_msg = confirmation.getBytes();
 
-			int  n = new Random().nextInt(400) + 1;
-			Thread.sleep(n);
-
 			InetAddress addr = InetAddress.getByName(peer.getMcIP());
 			this.mc.send(new DatagramPacket(byte_msg, byte_msg.length, addr, peer.getMcPort()));
 
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

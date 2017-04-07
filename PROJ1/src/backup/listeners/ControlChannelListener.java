@@ -52,7 +52,6 @@ public class ControlChannelListener implements Runnable {
 			return;
 		
 		if (result[0].equals("STORED")) {
-			System.out.println("received stored  1!");
 			Peer.storedMsgsReceived.add(new String(buf, 0, buf.length));
 			MetaDataChunk c = new MetaDataChunk(result[3], Integer.parseInt(result[4]), 1);
 			Peer.recordsBackupIfNeeded(c, result[2]);
