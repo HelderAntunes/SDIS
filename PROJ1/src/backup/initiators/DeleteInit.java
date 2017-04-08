@@ -41,6 +41,7 @@ public class DeleteInit implements Runnable {
 			System.out.println("Init of DeleteInit");
 			
 			byte[] msg = this.createMsg();
+			Peer.deleteMsgSent.add(msg);
 			InetAddress addr = InetAddress.getByName(this.peer.getMcIP());
 			int attempts = 0;
 			int timeOut = 1000;
@@ -72,6 +73,7 @@ public class DeleteInit implements Runnable {
 					}
 				}
 			}
+			Peer.recordsDatabaseToFile();
 
 			System.out.println("End of DeleteInit");
 			

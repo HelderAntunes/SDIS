@@ -15,7 +15,6 @@ import java.util.concurrent.Executors;
 
 import backup.initiators.BackupInit;
 import backup.initiators.DeleteInit;
-import backup.initiators.DeleteInitEnh;
 import backup.initiators.ReclaimInit;
 import backup.initiators.RestoreInit;
 import backup.initiators.RestoreInitEnh;
@@ -69,12 +68,13 @@ public class RMIServer implements Runnable, I_RMICalls {
 			MetaDataChunk.last_id = 0;
 
 		}
-		else if (command.equals("DELETE")) {
+		else if (command.equals("DELETE") || command.equals("DELETEENH")) {
 
 			// arguments = [pathFile]
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			this.executor.execute(new Thread(new DeleteInit(peer, file)));
+			
 		}
 		else if (command.equals("RESTORE") || command.equals("RESTOREENH")) {
 
@@ -176,14 +176,6 @@ public class RMIServer implements Runnable, I_RMICalls {
 		else if (command.equals("STATE")) {
 
 			return this.peer.printState();
-		}
-		else if (command.equals("DELETEENH")) {
-
-			// arguments = [pathFile]
-			String pathFile = args[0];
-			File file = new File(pathFile);
-			this.executor.execute(new Thread(new DeleteInitEnh(peer, file)));
-
 		}
 		else {
 			return "Error: command not found.";

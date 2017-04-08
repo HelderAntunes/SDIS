@@ -10,7 +10,10 @@ import java.util.ArrayList;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import backup.initiators.ValidInit;
 import backup.listeners.ControlChannelListener;
 import backup.listeners.DataChannelListener;
 import backup.listeners.RecoveryChannelListener;
@@ -34,12 +37,12 @@ public class Peer {
 	public static CopyOnWriteArrayList<MetaDataChunk> chunksSaved; 
 	public static CopyOnWriteArrayList<MetaDataChunk> myChunks; 
 	public static CopyOnWriteArrayList<MetaDataFile> myFiles; 
+	public static CopyOnWriteArrayList<byte[]> deleteMsgSent;
 
 	// Data of messages received (It is not saved in file)
 	public static CopyOnWriteArrayList<String> storedMsgsReceived; 
 	public static CopyOnWriteArrayList<byte[]> chunkMsgsReceived; 
 	public static CopyOnWriteArrayList<String> putChunkMsgsReceived; 
-	public static CopyOnWriteArrayList<String> deletedMsgReceived;
 
 	public static File chunksDir;
 	public static File serverDir;
@@ -65,15 +68,15 @@ public class Peer {
 		Peer.chunkMsgsReceived = new CopyOnWriteArrayList<byte[]>();
 		Peer.putChunkMsgsReceived = new CopyOnWriteArrayList<String>();
 		Peer.storedMsgsReceived = new CopyOnWriteArrayList<String>();
-		Peer.deletedMsgReceived = new CopyOnWriteArrayList<String>();
-
-		this.init();
 
 		new Thread(new ControlChannelListener(this)).start();
 		new Thread(new DataChannelListener(this)).start();
 		new Thread(new RecoveryChannelListener(this)).start();
 		new Thread(new RMIServer(this)).start();
 		new Thread(new UnicastRecoveryListener(this)).start();
+		
+		this.init();
+
 	}
 
 	/**
@@ -97,6 +100,7 @@ public class Peer {
 	private void init() {
 		this.initDirectories();
 		this.initDatabase();
+		this.validateFilesOfChunksSaved();
 	}
 
 	private void initDirectories() {
@@ -140,6 +144,7 @@ public class Peer {
 				Peer.chunksSaved = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
 				Peer.myChunks = (CopyOnWriteArrayList<MetaDataChunk>) ois.readObject();
 				Peer.myFiles = (CopyOnWriteArrayList<MetaDataFile>) ois.readObject();
+				Peer.deleteMsgSent = (CopyOnWriteArrayList<byte[]>) ois.readObject();
 				Peer.maxSpaceDisk_bytes = (Integer)ois.readObject();
 				Peer.spaceUsed_bytes = (Integer)ois.readObject();
 				ois.close();
@@ -149,6 +154,7 @@ public class Peer {
 				Peer.chunksSaved = new CopyOnWriteArrayList<MetaDataChunk>();
 				Peer.myChunks = new CopyOnWriteArrayList<MetaDataChunk>();
 				Peer.myFiles = new CopyOnWriteArrayList<MetaDataFile>();
+				Peer.deleteMsgSent = new CopyOnWriteArrayList<byte[]>();
 			}
 
 		} catch (IOException e) {
@@ -156,6 +162,26 @@ public class Peer {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void validateFilesOfChunksSaved() {
+		
+		ArrayList<String> filesID = this.getFilesIdOfChunksThatSaved();
+		ExecutorService executor = Executors.newFixedThreadPool(Utils.MAX_NO_THREADS);
+		
+		for (String fileID: filesID)
+			executor.execute(new Thread(new ValidInit(this, fileID)));
+
+	}
+	
+	private ArrayList<String> getFilesIdOfChunksThatSaved() {
+
+		TreeSet<String> setFilesID = new TreeSet<String>();
+		for (MetaDataChunk c: Peer.chunksSaved) {
+			setFilesID.add(c.fileId);
+		}
+
+		return new ArrayList<String>(setFilesID);
 	}
 
 	/**
@@ -171,6 +197,7 @@ public class Peer {
 			oos.writeObject(Peer.chunksSaved);
 			oos.writeObject(Peer.myChunks);
 			oos.writeObject(Peer.myFiles);
+			oos.writeObject(Peer.deleteMsgSent);
 			oos.writeObject(new Integer(Peer.maxSpaceDisk_bytes));
 			oos.writeObject(new Integer(Peer.spaceUsed_bytes));
 			oos.close();
@@ -362,9 +389,6 @@ public class Peer {
 		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
 			MetaDataChunk chunk = Peer.chunksSaved.get(i);
 
-			if (!Peer.backUpAChunkPreviously(Integer.toString(this.serverID), chunk)) {
-				sb.append("pois...\n");
-			}
 			sb.append("id: " + chunk.toString() + "\n");
 			long size_kbytes = new File(Peer.chunksDir, chunk.toString()).length() / 1000;
 			sb.append("size (KBytes): " + size_kbytes + "\n");
@@ -488,7 +512,7 @@ public class Peer {
 	}
 
 	private ArrayList<byte[]> getChunkMsgReceivedOfAChunk(MetaDataChunk chunk) {
-		
+
 		ArrayList<byte[]> msgsOfThatChunk = new ArrayList<byte[]>();
 
 		for (int i = 0; i < Peer.chunkMsgsReceived.size(); i++) {
@@ -504,7 +528,7 @@ public class Peer {
 				}
 			}
 		}
-		
+
 		return msgsOfThatChunk;
 	}
 
@@ -543,7 +567,6 @@ public class Peer {
 				File fileToDelete = new File(Peer.chunksDir, chunk.toString());
 				if (fileToDelete.exists()) {
 					Peer.spaceUsed_bytes -= (int)fileToDelete.length();
-					System.out.println("pois");
 					fileToDelete.delete();
 				}
 
@@ -552,4 +575,29 @@ public class Peer {
 			}
 		}
 	}
+
+	public static synchronized boolean fileWasDeleted(String fileID) {
+
+		for (byte[] msg: Peer.deleteMsgSent) {
+			String[] msgStr = new String(msg).split("\\s+");
+			String fileIdOfMsg = msgStr[3];
+			if (fileIdOfMsg.equals(fileID))
+				return true;
+		}
+
+		return false;
+	}
+
+	public static synchronized byte[] getDeleteMsgOfAFile(String fileID) {
+
+		for (byte[] msg: Peer.deleteMsgSent) {
+			String[] msgStr = new String(msg).split("\\s+");
+			String fileIdOfMsg = msgStr[3];
+			if (fileIdOfMsg.equals(fileID))
+				return msg;
+		}
+
+		return null;
+	}
+
 }

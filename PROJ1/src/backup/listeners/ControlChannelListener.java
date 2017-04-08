@@ -12,10 +12,10 @@ import backup.MetaDataChunk;
 import backup.Peer;
 import backup.Utils;
 import backup.responseHandlers.DeleteResponse;
-import backup.responseHandlers.DeleteResponseEnh;
 import backup.responseHandlers.ReclaimResponse;
 import backup.responseHandlers.RestoreResponse;
 import backup.responseHandlers.RestoreResponseEnh;
+import backup.responseHandlers.ValidResponse;
 
 public class ControlChannelListener implements Runnable {
 
@@ -45,13 +45,13 @@ public class ControlChannelListener implements Runnable {
 		byte[] buf = new byte[1024];
 		DatagramPacket msgRcvd = new DatagramPacket(buf, buf.length);
 		mc.receive(msgRcvd);
-		
+
 		buf = Arrays.copyOfRange(buf, 0, msgRcvd.getLength());
 
 		String[] result = new String(buf, 0, buf.length).split("\\s+");
 		if (result.length == 0)
 			return;
-		
+
 		if (result[0].equals("STORED")) {
 			Peer.storedMsgsReceived.add(new String(buf, 0, buf.length));
 			MetaDataChunk c = new MetaDataChunk(result[3], Integer.parseInt(result[4]), 1);
@@ -66,19 +66,17 @@ public class ControlChannelListener implements Runnable {
 
 		if (result[0].equals("DELETE")) {
 
-			if (this.peer.getProtocolVersion().equals("1.0")) 
-				this.executor.execute(new Thread(new DeleteResponse(this.peer, buf)));
-			else 
-				this.executor.execute(new Thread(new DeleteResponseEnh(this.peer, buf)));
+			this.executor.execute(new Thread(new DeleteResponse(this.peer, buf)));
 
 		}
-		else if (result[0].equals("DELETED")) {
+		else if (result[0].equals("VALID")) {
 
-			Peer.deletedMsgReceived.add(new String(buf, 0, buf.length));
+			if (!this.peer.getProtocolVersion().equals("1.0"))
+				this.executor.execute(new Thread(new ValidResponse(this.peer, buf)));
 
 		}
 		else if (result[0].equals("GETCHUNK")) {
-			
+
 			if (this.peer.getProtocolVersion().equals("1.0"))
 				this.executor.execute(new Thread(new RestoreResponse(this.peer, buf)));
 			else

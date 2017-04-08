@@ -1,10 +1,7 @@
 package backup.responseHandlers;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Set;
 
-import backup.MetaDataChunk;
 import backup.Peer;
 
 public class DeleteResponse implements Runnable {
@@ -29,31 +26,16 @@ public class DeleteResponse implements Runnable {
 			return;
 		}
 		
-		System.out.println("Init of delete response!");
-		
-		Set<MetaDataChunk> keys = Peer.backupDB.keySet();
-		for(MetaDataChunk key : keys) {
-			
-			if (key.fileId.equals(fileID)) {
-				Peer.backupDB.remove(key);
-				File fileToDelete = new File(Peer.chunksDir, key.toString());
-				if (fileToDelete.exists()) {
-					Peer.spaceUsed_bytes -= (int)fileToDelete.length();
-					fileToDelete.delete();
-				}
-			}
+		if (!this.peer.checkIfSaveAChunkOfAFile(fileID)) {
+			return;
 		}
 		
-		for (int i = 0; i < Peer.chunksSaved.size(); i++) {
-			if (Peer.chunksSaved.get(i).fileId.equals(fileID)) {
-				Peer.chunksSaved.remove(i);
-				i--;
-			}
-		}
+		System.out.println("Init of DeleteResponse");
 		
-		System.out.println("End of delete response!");
-		
+		Peer.deleteDataAssociatedWithAFileSaved(fileID);
 		Peer.recordsDatabaseToFile();
+		
+		System.out.println("End of DeleteResponse");
 	}
 
 }

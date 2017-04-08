@@ -69,11 +69,13 @@ public class BackupResponse implements Runnable {
 			else {	
 				if (Peer.getReplicationOfChunk(chunk) < chunk.desiredRepDeg){
 					this.sendConfirmation();
+					Peer.recordsBackupIfNeeded(chunk, Integer.toString(this.peer.getServerID()));
+					Peer.remPutChunkMsgOfAChunk(chunk);
 					Peer.chunksSaved.add(chunk);
 					this.saveChunkInFileSystem(chunk);
 				}
 			}
-
+			
 			Peer.recordsDatabaseToFile();		
 		}
 
