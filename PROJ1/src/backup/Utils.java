@@ -30,6 +30,7 @@ public class Utils {
 	public static final int MAX_NO_THREADS = 5;
 	public static final int PORT_UNICAST_RECOVERY_LISTENER = 2005;
 
+	
     /**
      * Obtain file id by using the SHA256 cryptographic hash function.
      * @param file original file name
@@ -83,6 +84,11 @@ public class Utils {
 		return res;
     }
     
+    /**
+     * Get body of a message.
+     * @param msgRcvd
+     * @return body of msgRcvd
+     */
     public static byte[] getBodyOfMsg(byte[] msgRcvd) {
 		byte[] bodyMsg = null;
 		for (int i = 0; i < msgRcvd.length-3; i++) {
@@ -97,6 +103,12 @@ public class Utils {
 		return bodyMsg;
 	}
     
+    /**
+     * Merge files to into file.
+     * @param files files to merge
+     * @param into file merged
+     * @throws IOException
+     */
     public static void mergeFiles(List<File> files, File into) throws IOException {
         try (BufferedOutputStream mergingStream = new BufferedOutputStream(new FileOutputStream(into))) {
             for (File f : files) {
@@ -106,11 +118,14 @@ public class Utils {
         }
     }
     
+    /**
+     * Sleep the current Thread during an interval between [0, maxSleeo]
+     * @param maxSleep
+     */
     public static void myRandomSleep(int maxSleep) {
 		try {
 			int n = new Random().nextInt(maxSleep+1);
 			Thread.sleep(n);
-			System.out.println("random = " + n);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

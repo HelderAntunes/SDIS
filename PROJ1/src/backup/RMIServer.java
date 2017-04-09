@@ -36,7 +36,6 @@ public class RMIServer implements Runnable, I_RMICalls {
 			RMIServer obj = new RMIServer(this.peer);
 			I_RMICalls stub = (I_RMICalls) UnicastRemoteObject.exportObject(obj, 0);
 
-			// Bind the remote object's stub in the registry
 			Registry registry = LocateRegistry.getRegistry(Utils.PORT_RMI_REGISTRY);
 			registry.rebind(this.objRemoteName, stub);
 
@@ -48,10 +47,18 @@ public class RMIServer implements Runnable, I_RMICalls {
 
 	@Override
 	public String call(String command, String[] args) throws RemoteException {
+		
+		if (!this.canProvideEnhacement(command)) {
+			return "Error: the peer cannot provide the enhacement specified in command.";
+		}
 
-		if (command.equals("BACKUP")) {
+		if (command.equals("BACKUP") || command.equals("BACKUPENH")) {
 
 			// arguments = [pathFile, repDeg]
+			if (args.length != 2) {
+				return "java TestApp <rmi_ap> " + command + " <path_file> <rep_deg>";
+			}
+			
 			String pathFile = args[0];
 			int repDeg = Integer.parseInt(args[1]);
 
@@ -71,6 +78,10 @@ public class RMIServer implements Runnable, I_RMICalls {
 		else if (command.equals("DELETE") || command.equals("DELETEENH")) {
 
 			// arguments = [pathFile]
+			if (args.length != 1) {
+				return "java TestApp <rmi_ap> " + command + " <path_file>";
+			}
+			
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			this.executor.execute(new Thread(new DeleteInit(peer, file)));
@@ -79,6 +90,10 @@ public class RMIServer implements Runnable, I_RMICalls {
 		else if (command.equals("RESTORE") || command.equals("RESTOREENH")) {
 
 			// arguments = [pathFile]
+			if (args.length != 1) {
+				return "java TestApp <rmi_ap> " + command + " <path_file>";
+			}
+			
 			String pathFile = args[0];
 			File file = new File(pathFile);
 			String fileID = Utils.getFileId(file.getName() + Integer.toString((int)file.lastModified()));
@@ -126,14 +141,19 @@ public class RMIServer implements Runnable, I_RMICalls {
 			try {
 				File fileRestored = new File(Peer.filesRestoredDir, file.getName());
 				Utils.mergeFiles(files, fileRestored);
+				return "File restored successfully.\nPath of file restored: " + fileRestored.getAbsolutePath();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
+			
 		}
 		else if (command.equals("RECLAIM")) {
 
 			// arguments = [space(KByte)]
+			if (args.length != 1) {
+				return "java TestApp <rmi_ap> " + command + " <space(KByte)>";
+			}
+			
 			int spaceReclaim_bytes = Integer.parseInt(args[0]) * 1000;
 
 			if (Peer.maxSpaceDisk_bytes < spaceReclaim_bytes) {
@@ -174,14 +194,20 @@ public class RMIServer implements Runnable, I_RMICalls {
 			}
 		}
 		else if (command.equals("STATE")) {
-
-			return this.peer.printState();
+			return this.peer.getState();
 		}
 		else {
 			return "Error: command not found.";
 		}
 
 		return "Command sent successfully.";
+	}
+	
+	private boolean canProvideEnhacement(String command) {
+		if (command.endsWith("ENH") && this.peer.getProtocolVersion().equals("1.0"))
+			return false;
+		else
+			return true;
 	}
 
 }

@@ -7,10 +7,13 @@ import java.rmi.registry.Registry;
 import java.util.Arrays;
 
 public class TestApp {
-
+	
+	// args: <peer_ap> <sub_protocol> <opnd_1> <opnd_2> 
 	public static void main(String[] args) {
 		
-		// $ java TestApp <peer_ap> <sub_protocol> <opnd_1> <opnd_2> 
+		if (args.length < 2) {
+			System.out.println("java TestApp <peer_ap> <sub_protocol> <opnd_1> <opnd_2>");
+		}
 		
 		String peerAp = args[0];
 		String subProtocol = args[1];

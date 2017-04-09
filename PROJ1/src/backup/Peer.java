@@ -38,6 +38,8 @@ public class Peer {
 	public static CopyOnWriteArrayList<MetaDataChunk> myChunks; 
 	public static CopyOnWriteArrayList<MetaDataFile> myFiles; 
 	public static CopyOnWriteArrayList<byte[]> deleteMsgSent;
+	public static int maxSpaceDisk_bytes = Utils.MAX_SPACE_DISK;
+	public static int spaceUsed_bytes = 0;
 
 	// Data of messages received (It is not saved in file)
 	public static CopyOnWriteArrayList<String> storedMsgsReceived; 
@@ -48,10 +50,6 @@ public class Peer {
 	public static File serverDir;
 	public static File chunksRestoredDir;
 	public static File filesRestoredDir;
-
-	public static int maxSpaceDisk_bytes = Utils.MAX_SPACE_DISK;
-	public static int spaceUsed_bytes = 0;
-
 
 	public Peer(String[] args) throws IOException {
 
@@ -75,19 +73,21 @@ public class Peer {
 		new Thread(new RMIServer(this)).start();
 		new Thread(new UnicastRecoveryListener(this)).start();
 		
-		this.init();
-
+		this.initDirectories();
+		this.initDatabase();
+		if (!this.protocolVersion.equals("1.0"))
+			this.validateFilesOfChunksSaved();
 	}
 
 	/**
-	 * 
-	 * @param args:
-	 * 1.0 1 1 224.0.0.1 2000 224.0.0.2 2002 224.0.0.3 2003 processchunk
-	 * 1.0 2 1 224.0.0.1 2000 224.0.0.2 2002 224.0.0.3 2003 putchunk
+	 * @param args: <version> <id> <rmi_ap> <MC_addr> <MC_port> <MDB_addr> <MDB_port> <MDR_addr> <MDR_port>
 	 */
 	public static void main(String[] args) {
-
-		try {
+		
+		if (!Peer.validateArgs(args))
+			return;
+		
+		try { 
 			Peer peer = new Peer(args);
 			System.out.println("Peer " + peer.serverID + " started...");
 		} catch (IOException e) {
@@ -96,11 +96,15 @@ public class Peer {
 		}
 
 	}
-
-	private void init() {
-		this.initDirectories();
-		this.initDatabase();
-		this.validateFilesOfChunksSaved();
+	
+	public static boolean validateArgs(String[] args) {
+		
+		if (args.length != 9) {
+			System.out.println("java Peer <version> <id> <rmi_ap> <MC_addr> <MC_port> <MDB_addr> <MDB_port> <MDR_addr> <MDR_port>");
+			return false;
+		}
+		
+		return true;
 	}
 
 	private void initDirectories() {
@@ -184,12 +188,10 @@ public class Peer {
 		return new ArrayList<String>(setFilesID);
 	}
 
-	/**
-	 * Save the meta-data in non-volatile memory.
-	 */
 	public static synchronized void recordsDatabaseToFile() {
 
 		try {
+			
 			File db_file = new File(Peer.serverDir, Utils.DB_FILE_NAME);
 			FileOutputStream fout = new FileOutputStream(db_file);
 			ObjectOutputStream oos = new ObjectOutputStream(fout);
@@ -202,6 +204,7 @@ public class Peer {
 			oos.writeObject(new Integer(Peer.spaceUsed_bytes));
 			oos.close();
 			fout.close();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -289,26 +292,10 @@ public class Peer {
 		this.mdrPort = mdrPort;
 	}
 
-	public ConcurrentHashMap<MetaDataChunk, ArrayList<String> > getBackupDB() {
-		return backupDB;
-	}
-
-	public void setBackupDB(ConcurrentHashMap<MetaDataChunk, ArrayList<String> > backupDB) {
-		Peer.backupDB = backupDB;
-	}
 
 	/*************************************************/
 	/********* END OF GETTERS AND SETTERS ************/
 	/*************************************************/
-
-	/**
-	 * Get peers that saved a chunk.
-	 * @param chunk
-	 * @return array of peer's string
-	 */
-	public static synchronized ArrayList<String> getPeersThatSavedTheChunk(MetaDataChunk chunk) {
-		return Peer.backupDB.get(chunk);
-	}
 
 	/**
 	 * Check if the peer backup the chunk.
@@ -361,8 +348,12 @@ public class Peer {
 			}
 		}
 	}
-
-	public String printState() {
+	
+	/**
+	 * Used in STATE command of TestApp
+	 * @return state of peer in string format
+	 */
+	public String getState() {
 
 		StringBuilder sb = new StringBuilder("");
 
@@ -412,13 +403,7 @@ public class Peer {
 
 		return false;
 	}
-
-	public void printTab(int numSpaces) {
-		for (int i = 0; i < numSpaces; i++) {
-			System.out.print(" ");
-		}
-	}
-
+	
 	public static synchronized void remPutChunkMsgOfAChunk(MetaDataChunk chunk) {
 		for (int i = 0; i < Peer.putChunkMsgsReceived.size(); i++) {
 			String[] msgPutChunk = Peer.putChunkMsgsReceived.get(i).split("\\s+");
@@ -483,7 +468,6 @@ public class Peer {
 			int chunkNO_msg = Integer.parseInt(msgPutChunk[4]);
 
 			if (fileID_msg.equals(fileID) && chunkNO_msg == chunkNO) {
-				//storedMsgsReceived.remove(i);
 				return true;
 			}
 		}
